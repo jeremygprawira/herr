@@ -23,9 +23,8 @@ client owns all UI and may render and localize however it wants.
   **internal surface** (logs only), with the boundary enforced structurally.
 - **Flexibility first:** `Code` is the only required field; everything else is
   optional and auto-derived, and every default is overridable.
-- Express the human anatomy of a good message (what happened / why / reassurance)
-  as optional structured text, plus a **free-form public metadata bag** for
-  anything else the team wants the client to have.
+- Express the message as a clear `Title` + `Message`, plus a **free-form public
+  metadata bag** for anything else the team wants the client to have.
 - Be agnostic: core imports **zero** third-party logging or i18n libraries.
 - Ship REST, gRPC, and WebSocket adapters in v1.
 
@@ -95,10 +94,9 @@ const (
 
 // Public is, by definition, the COMPLETE set of fields that can cross the wire.
 type Public struct {
-    Title       string         // "what happened"   (optional)
-    Message     string         // main text / "why"  (optional; floor fallback)
-    Reassurance string         // "what's safe"      (optional)
-    Metadata    map[string]any // free-form, crosses the wire — put anything (optional)
+    Title    string         // optional heading
+    Message  string         // main text (optional; floor fallback)
+    Metadata map[string]any // free-form, crosses the wire — put anything (optional)
 }
 
 // Error is the single runtime type. Internal fields are UNEXPORTED so external
@@ -142,7 +140,6 @@ var ErrAccountConnect = herr.Define(herr.Class{
 })
 
 return ErrAccountConnect.New().
-    Reassure("Your changes were saved.").  // public text
     WithPublic("incident_id", id).         // → wire metadata (safe)
     With("upstream", "kyc-svc").           // → logs only
     Wrap(err)
@@ -157,7 +154,7 @@ return herr.New("ACCOUNT_CONNECT_FAILED").
 `herr.Msg(s)` is shorthand for `Public{Message: s}` so the common case is a one-liner.
 
 ### Builder surface (all return `*Error`, chainable, nil-safe)
-`.Kind` `.Status` `.GRPC` `.WS` `.Public` `.Title` `.Message` `.Reassure`
+`.Kind` `.Status` `.GRPC` `.WS` `.Public` `.Title` `.Message`
 `.Meta`/`.WithPublic` (public metadata) `.Param/.Params` `.With` (internal field)
 `.Internal/.Internalf` `.Trace` `.WithStack` `.Wrap`.
 
@@ -168,7 +165,7 @@ return herr.New("ACCOUNT_CONNECT_FAILED").
 | Field | Auto-derived from | Override |
 |---|---|---|
 | `HTTP` / `GRPC` / `WS` | `Kind` | set explicitly |
-| i18n keys | `Code` → `errors.<code>.{title,message,reassurance}` | set explicit key / disable |
+| i18n keys | `Code` → `errors.<code>.{title,message}` | set explicit key / disable |
 | public message | resolution chain (§7) | inline `.Public()` |
 | `retryable` | `Kind` (yes / no / neutral→omit) | `RetryYes` / `RetryNo` |
 
@@ -185,8 +182,8 @@ Writing just `Code` yields a working, localized-if-available error.
 5. Built-in default for `Kind`.
 6. Generic safe floor (`"Something went wrong."` + code + traceId).
 
-Title and Reassurance follow the same chain with their own derived keys. **Only
-public text is localized; internal/log text stays one language.**
+Title follows the same chain with its own derived key. **Only public text is
+localized; internal/log text stays one language.**
 
 ---
 
@@ -214,7 +211,6 @@ re-localize however it wants.
   "code": "ACCOUNT_CONNECT_FAILED",
   "title": "Unable to connect your account",
   "message": "We couldn't connect your account due to a technical issue on our end.",
-  "reassurance": "Your changes were saved.",
   "retryable": true,
   "metadata": { "support_url": "https://amartha.com/support", "incident_id": "8f3a-..." },
   "traceId": "f1c2-..."
@@ -238,8 +234,8 @@ re-localize however it wants.
 ## 10. The Safe Split (Security Model)
 
 - The wire allowlist is exactly: `code`, `Public.Title`, `Public.Message`,
-  `Public.Reassurance`, `Public.Metadata` (+ dynamic `pubMeta`), `retryable`
-  (only when known), `retryAfter`, `traceId`.
+  `Public.Metadata` (+ dynamic `pubMeta`), `retryable` (only when known),
+  `retryAfter`, `traceId`.
 - Internal data (`internal`, internal `fields`, `cause`, `stack`) lives in
   **unexported** fields — external reflection cannot reach it.
 - **Whitelist serialization:** a single `(e *Error) wire(locale) wireError` builds an
@@ -370,11 +366,12 @@ defaults + cookbook + `StrictMode`; all §14 hardening.
 - **Locales → `en` default + built-in `id`.** `en` is always on (zero config);
   herr ships embedded floor-message bundles for `en` and `id`, extendable via
   `SetSupportedLocales`. herr translates only its own floor messages.
-- **Title/Message/Reassurance → all kept.** The message anatomy is a *closed,
-  universal, tooling-relevant* schema: stable for every client to lay out, and
-  lintable by `StrictMode` (e.g. nudging teams to include reassurance). Open-ended
-  data goes in `metadata`. Guiding line: **typed = closed/universal/tooling-relevant;
-  metadata = open/team-specific.**
+- **`Title` + `Message` kept; `Reassurance` removed.** The public text is a *closed,
+  universal, tooling-relevant* schema (heading + body) — stable for every client to
+  lay out and lintable by `StrictMode`. Reassurance was dropped to keep the surface
+  minimal; teams that want a "what's safe" line put it in `Message` or `metadata`.
+  Guiding line: **typed = closed/universal/tooling-relevant; metadata =
+  open/team-specific.**
 
 ## 20. Open Questions
 
