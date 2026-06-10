@@ -36,6 +36,11 @@ type Error struct {
 	// override be optional without an extra bool.
 	httpStatus int
 
+	// public is the user-facing surface: the ONLY data that may be serialized to the
+	// client. It is exported as a struct (herr.Public) but stored here unexported so the
+	// wire DTO — not reflection over *Error — controls exactly what is emitted.
+	public Public
+
 	// cause is the underlying error this one wraps, if any. It powers errors.Unwrap
 	// (and therefore errors.Is/As over the chain). It is INTERNAL — it is surfaced to
 	// logs, never to the client.
