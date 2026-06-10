@@ -12,6 +12,8 @@
 // is layered on top in sibling files and sub-packages.
 package herr
 
+import "strings"
+
 // Error is the single runtime type the whole library revolves around.
 //
 // Every exported method returns *Error (never a bare `error`) so calls can be chained
@@ -41,6 +43,19 @@ type Error struct {
 	// wire DTO — not reflection over *Error — controls exactly what is emitted.
 	public Public
 
+	// pubMeta holds dynamic public metadata added at the call site via WithPublic. It is
+	// merged with public.Metadata at render time. Kept separate (and lazily allocated)
+	// so the static catalog Metadata is never mutated by per-request additions.
+	pubMeta map[string]any
+
+	// internal is the developer-only message (logs/debugging). It is part of the
+	// INTERNAL surface and never serialized to the client.
+	internal string
+
+	// fields are internal structured context (key/value) for logs. INTERNAL — never
+	// serialized. Lazily grown via With.
+	fields []Field
+
 	// cause is the underlying error this one wraps, if any. It powers errors.Unwrap
 	// (and therefore errors.Is/As over the chain). It is INTERNAL — it is surfaced to
 	// logs, never to the client.
@@ -68,10 +83,21 @@ func (e *Error) Code() string {
 //
 // The string it returns is DEVELOPER-facing — intended for logs and debugging, not for
 // end users (the user-facing message lives on the public surface and is rendered by the
-// transport layer). For now it surfaces the code so a log line is identifiable; as more
-// internal detail is added (internal message, cause), this string grows to include it.
+// transport layer). It surfaces the code, the internal message, and the wrapped cause so
+// a single log line is self-explanatory. None of this string is ever sent to a client.
 func (e *Error) Error() string {
-	return e.code
+	var b strings.Builder
+	b.WriteString(e.code)
+	if e.internal != "" {
+		b.WriteString(": ")
+		b.WriteString(e.internal)
+	}
+	if e.cause != nil {
+		b.WriteString(" (cause: ")
+		b.WriteString(e.cause.Error())
+		b.WriteString(")")
+	}
+	return b.String()
 }
 
 // Unwrap returns the wrapped cause (or nil), making *Error participate in the standard

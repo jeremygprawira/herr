@@ -35,8 +35,28 @@ func (e *Error) wire(locale string) wireError {
 		Code:     e.code,
 		Title:    e.public.Title,
 		Message:  e.public.Message,
-		Metadata: e.public.Metadata,
+		Metadata: e.mergedMetadata(),
 	}
+}
+
+// mergedMetadata combines the static catalog metadata (public.Metadata) with the dynamic
+// per-request metadata (pubMeta added via WithPublic). Dynamic values win on key
+// collisions. Returns nil when both are empty so the field is omitted from the body.
+//
+// A fresh map is allocated rather than mutating either source — this preserves C1 (the
+// catalog's static metadata is never altered by a per-request render).
+func (e *Error) mergedMetadata() map[string]any {
+	if len(e.public.Metadata) == 0 && len(e.pubMeta) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(e.public.Metadata)+len(e.pubMeta))
+	for k, v := range e.public.Metadata {
+		out[k] = v
+	}
+	for k, v := range e.pubMeta {
+		out[k] = v
+	}
+	return out
 }
 
 // MarshalJSON makes *Error safe to hand to encoding/json directly.
