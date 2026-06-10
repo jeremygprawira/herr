@@ -80,10 +80,18 @@ type Class struct {
     HTTP      int           // optional override of Kind default
     GRPC      codes.Code    // optional override
     WS        int           // optional override (close code)
-    Retryable  bool          // optional; protocol-level retry signal
+    Retry      Retry         // tri-state; zero value = Unset (no claim) → derived from Kind
     RetryAfter time.Duration // optional; emitted as Retry-After (REST) / RetryInfo (gRPC)
     Public     Public        // everything the user may see (all optional)
 }
+
+// Retry is tri-state so an UNSET value is never read as "not retryable".
+type Retry uint8
+const (
+    RetryUnset Retry = iota // zero value: no claim → derive from Kind; omit on wire if still unknown
+    RetryYes
+    RetryNo
+)
 
 // Public is, by definition, the COMPLETE set of fields that can cross the wire.
 type Public struct {
@@ -162,6 +170,7 @@ return herr.New("ACCOUNT_CONNECT_FAILED").
 | `HTTP` / `GRPC` / `WS` | `Kind` | set explicitly |
 | i18n keys | `Code` → `errors.<code>.{title,message,reassurance}` | set explicit key / disable |
 | public message | resolution chain (§7) | inline `.Public()` |
+| `retryable` | `Kind` (yes / no / neutral→omit) | `RetryYes` / `RetryNo` |
 
 Writing just `Code` yields a working, localized-if-available error.
 
@@ -216,6 +225,9 @@ re-localize however it wants.
   decisions. herr ships **no** reference renderers.
 - `retryable` (+ `Retry-After` header / gRPC `RetryInfo`) is a protocol semantic, not
   presentation — it tells the client/proxy *whether and when* to retry, not how to look.
+- **Tri-state, never a false claim.** If the dev sets no retryability and `Kind` has no
+  opinion, the field is **omitted**. **Absence means "unknown," not "not retryable"** —
+  only an explicit/derived `false` asserts "do not retry."
 - A client that localizes its own UI may ignore the localized text and use
   `code` + `metadata` + `params` instead.
 - `metadata` is part of the **public** surface; only safe values belong there
@@ -226,8 +238,8 @@ re-localize however it wants.
 ## 10. The Safe Split (Security Model)
 
 - The wire allowlist is exactly: `code`, `Public.Title`, `Public.Message`,
-  `Public.Reassurance`, `Public.Metadata` (+ dynamic `pubMeta`), `retryable`,
-  `retryAfter`, `traceId`.
+  `Public.Reassurance`, `Public.Metadata` (+ dynamic `pubMeta`), `retryable`
+  (only when known), `retryAfter`, `traceId`.
 - Internal data (`internal`, internal `fields`, `cause`, `stack`) lives in
   **unexported** fields — external reflection cannot reach it.
 - **Whitelist serialization:** a single `(e *Error) wire(locale) wireError` builds an
@@ -324,6 +336,10 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 Public **message text** may change freely; `Code` values never silently change.
 `metadata` is free-form; teams own their own metadata keys' stability.
 
+**`retryable` semantics (contract):** present `true`/`false` = an explicit claim;
+**absent = unknown** — clients must fall back to their own retry policy, never assume
+"do not retry" from absence.
+
 ---
 
 ## 18. Scope
@@ -338,10 +354,11 @@ defaults + cookbook + `StrictMode`; all §14 hardening.
 
 ## 19. Resolved Decisions
 
-- **Retryable → typed, kept.** It is a *protocol semantic*, not free-form data:
-  it drives `Retry-After` (REST) and `RetryInfo` (gRPC), and gives clients a stable,
-  schema-typed retry signal. Paired with optional `RetryAfter`. Metadata is reserved
-  for open-ended, team-specific data; protocol semantics stay typed.
+- **Retryable → typed & tri-state, kept.** A *protocol semantic*, not free-form data:
+  drives `Retry-After` (REST) and `RetryInfo` (gRPC). Modeled tri-state
+  (`RetryUnset`/`RetryYes`/`RetryNo`) so an unset value is **never** mistaken for "not
+  retryable" — unset derives from `Kind`, and is **omitted** from the wire when still
+  unknown. Paired with optional `RetryAfter`. Metadata stays for open-ended data.
 - **Locales → `en` default + built-in `id`.** `en` is always on (zero config);
   herr ships embedded floor-message bundles for `en` and `id`, extendable via
   `SetSupportedLocales`. herr translates only its own floor messages.
