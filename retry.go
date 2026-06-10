@@ -1,5 +1,7 @@
 package herr
 
+import "time"
+
 // Retry is a TRI-STATE retryability signal. The whole point of three states (rather than
 // a bool) is that "the developer never said" must be distinguishable from "the developer
 // said no". The zero value is RetryUnset — i.e. "no claim" — so forgetting to set it can
@@ -40,16 +42,30 @@ func (e *Error) Retry(r Retry) *Error {
 	return e
 }
 
+// RetryAfter sets a suggested delay before retrying and returns the receiver for
+// chaining. Setting a delay implies the error is retryable (see resolveRetry).
+func (e *Error) RetryAfter(d time.Duration) *Error {
+	if e == nil {
+		return nil
+	}
+	e.retryAfter = d
+	return e
+}
+
 // resolveRetry computes the EFFECTIVE tri-state using convention-with-override:
 //  1. an explicit Retry() claim wins, else
-//  2. the Kind-derived stance, else
-//  3. RetryUnset ("unknown") — which the wire layer renders by OMITTING the field.
+//  2. a positive RetryAfter implies RetryYes, else
+//  3. the Kind-derived stance, else
+//  4. RetryUnset ("unknown") — which the wire layer renders by OMITTING the field.
 func (e *Error) resolveRetry() Retry {
 	if e == nil {
 		return RetryUnset
 	}
 	if e.retry != RetryUnset {
 		return e.retry
+	}
+	if e.retryAfter > 0 {
+		return RetryYes
 	}
 	if r, ok := kindRetry[e.kind]; ok {
 		return r

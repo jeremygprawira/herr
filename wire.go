@@ -1,6 +1,9 @@
 package herr
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // wireError is the EXPLICIT allow-list of everything that may be serialized to a client.
 //
@@ -22,6 +25,9 @@ type wireError struct {
 	// omitted ("unknown"), &true / &false → an explicit claim. A plain bool could not
 	// express "unknown" and would wrongly emit `false` for unset errors.
 	Retryable *bool `json:"retryable,omitempty"`
+
+	// RetryAfter is the suggested retry delay in whole SECONDS. Omitted when 0/unset.
+	RetryAfter int `json:"retryAfter,omitempty"`
 }
 
 // wire builds the safe DTO for a given locale.
@@ -37,12 +43,22 @@ func (e *Error) wire(locale string) wireError {
 		return wireError{Code: "INTERNAL"}
 	}
 	return wireError{
-		Code:      e.code,
-		Title:     e.public.Title,
-		Message:   e.public.Message,
-		Metadata:  e.mergedMetadata(),
-		Retryable: retryablePtr(e.resolveRetry()),
+		Code:       e.code,
+		Title:      e.public.Title,
+		Message:    e.public.Message,
+		Metadata:   e.mergedMetadata(),
+		Retryable:  retryablePtr(e.resolveRetry()),
+		RetryAfter: retryAfterSeconds(e.retryAfter),
 	}
+}
+
+// retryAfterSeconds converts a duration to whole seconds for the wire, rounding UP so a
+// sub-second or fractional delay never renders as 0 (which would read as "no delay").
+func retryAfterSeconds(d time.Duration) int {
+	if d <= 0 {
+		return 0
+	}
+	return int((d + time.Second - 1) / time.Second)
 }
 
 // retryablePtr converts the resolved tri-state into the *bool the wire DTO needs:

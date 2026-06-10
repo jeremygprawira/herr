@@ -12,7 +12,10 @@
 // is layered on top in sibling files and sub-packages.
 package herr
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // Error is the single runtime type the whole library revolves around.
 //
@@ -41,6 +44,10 @@ type Error struct {
 	// retry is the explicit tri-state retryability claim (RetryUnset = no claim). The
 	// effective value is resolved against Kind at render time; see resolveRetry.
 	retry Retry
+
+	// retryAfter, when > 0, is a suggested delay before retrying. It is rendered as whole
+	// seconds (HTTP Retry-After / gRPC RetryInfo) and, when set, implies retryability.
+	retryAfter time.Duration
 
 	// public is the user-facing surface: the ONLY data that may be serialized to the
 	// client. It is exported as a struct (herr.Public) but stored here unexported so the
