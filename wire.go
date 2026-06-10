@@ -43,9 +43,11 @@ func (e *Error) wire(locale string) wireError {
 		return wireError{Code: "INTERNAL"}
 	}
 	return wireError{
-		Code:       e.code,
-		Title:      e.public.Title,
-		Message:    e.public.Message,
+		Code: e.code,
+		// Title/Message are run through the injection-safe template substituter so any
+		// {name} placeholders are filled from params before they reach the client.
+		Title:      substitute(e.public.Title, e.params),
+		Message:    substitute(e.public.Message, e.params),
 		Metadata:   e.mergedMetadata(),
 		Retryable:  retryablePtr(e.resolveRetry()),
 		RetryAfter: retryAfterSeconds(e.retryAfter),

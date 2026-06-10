@@ -64,6 +64,10 @@ type Error struct {
 	// so the static catalog Metadata is never mutated by per-request additions.
 	pubMeta map[string]any
 
+	// params fills {name} placeholders in the public Title/Message at render time.
+	// Lazily allocated; see template.go for the injection-safe substitution.
+	params map[string]any
+
 	// internal is the developer-only message (logs/debugging). It is part of the
 	// INTERNAL surface and never serialized to the client.
 	internal string
