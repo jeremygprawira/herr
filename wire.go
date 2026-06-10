@@ -28,6 +28,9 @@ type wireError struct {
 
 	// RetryAfter is the suggested retry delay in whole SECONDS. Omitted when 0/unset.
 	RetryAfter int `json:"retryAfter,omitempty"`
+
+	// TraceID correlates this response with server logs. Omitted when unset.
+	TraceID string `json:"traceId,omitempty"`
 }
 
 // wire builds the safe DTO for a given locale.
@@ -51,6 +54,7 @@ func (e *Error) wire(locale string) wireError {
 		Metadata:   e.mergedMetadata(),
 		Retryable:  retryablePtr(e.resolveRetry()),
 		RetryAfter: retryAfterSeconds(e.retryAfter),
+		TraceID:    e.traceID,
 	}
 }
 

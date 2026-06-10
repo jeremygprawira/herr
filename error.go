@@ -80,6 +80,29 @@ type Error struct {
 	// (and therefore errors.Is/As over the chain). It is INTERNAL — it is surfaced to
 	// logs, never to the client.
 	cause error
+
+	// traceID is a correlation id echoed to the client (as `traceId`) AND to logs, so a
+	// user can quote it to support and an operator can find the exact request. It is one
+	// of the few values that intentionally appears on BOTH surfaces. Set via Trace;
+	// transports inject one when unset.
+	traceID string
+}
+
+// Trace sets the correlation id and returns the receiver for chaining.
+func (e *Error) Trace(id string) *Error {
+	if e == nil {
+		return nil
+	}
+	e.traceID = id
+	return e
+}
+
+// TraceID returns the correlation id (empty if unset).
+func (e *Error) TraceID() string {
+	if e == nil {
+		return ""
+	}
+	return e.traceID
 }
 
 // New constructs a fresh *Error from a Code.
