@@ -2,6 +2,15 @@ package herr
 
 import "fmt"
 
+// Bounds (H5): an error must not grow without limit, or a buggy loop / a malicious caller
+// could blow up memory, response size, and log-line size. Past these caps, further
+// additions are dropped and a one-time truncation marker is recorded so the loss is
+// visible rather than silent.
+const (
+	maxFields = 64
+	maxMeta   = 64
+)
+
 // Field is a single key/value of internal structured context, destined for logs only.
 // It is intentionally tiny and visibility-free: INTERNAL fields use this type, while
 // PUBLIC data uses the map on Error.pubMeta. Keeping the two in separate storage (rather
@@ -20,6 +29,13 @@ func (e *Error) With(key string, val any) *Error {
 	if e == nil {
 		return nil
 	}
+	if len(e.fields) >= maxFields {
+		// Add the marker exactly once (when first crossing the cap), then drop the rest.
+		if len(e.fields) == maxFields {
+			e.fields = append(e.fields, Field{Key: "_fields_truncated", Val: true})
+		}
+		return e
+	}
 	e.fields = append(e.fields, Field{Key: key, Val: val})
 	return e
 }
@@ -33,6 +49,11 @@ func (e *Error) WithPublic(key string, val any) *Error {
 	}
 	if e.pubMeta == nil {
 		e.pubMeta = make(map[string]any)
+	}
+	// Overwriting an existing key never grows the map, so only NEW keys are capped.
+	if _, exists := e.pubMeta[key]; !exists && len(e.pubMeta) >= maxMeta {
+		e.pubMeta["_metadata_truncated"] = true
+		return e
 	}
 	e.pubMeta[key] = val
 	return e
