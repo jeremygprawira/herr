@@ -25,6 +25,17 @@ type Error struct {
 	// and it never changes silently across versions (see the stability contract).
 	code string
 
+	// kind classifies the error (NotFound, Invalid, Internal, ...). It drives the
+	// DEFAULT transport codes (HTTP/gRPC/WS) and retryability, so callers usually set
+	// Kind once instead of repeating status numbers. The zero value is KindInternal
+	// (see Kind's iota ordering) — an unclassified error is treated as a server fault.
+	kind Kind
+
+	// httpStatus, when non-zero, is an EXPLICIT override of the Kind-derived HTTP
+	// status. Zero means "unset — derive from Kind". Keeping 0 as the sentinel lets the
+	// override be optional without an extra bool.
+	httpStatus int
+
 	// cause is the underlying error this one wraps, if any. It powers errors.Unwrap
 	// (and therefore errors.Is/As over the chain). It is INTERNAL — it is surfaced to
 	// logs, never to the client.
