@@ -80,8 +80,9 @@ type Class struct {
     HTTP      int           // optional override of Kind default
     GRPC      codes.Code    // optional override
     WS        int           // optional override (close code)
-    Retryable bool          // optional; sets Retry-After on retryable transports
-    Public    Public        // everything the user may see (all optional)
+    Retryable  bool          // optional; protocol-level retry signal
+    RetryAfter time.Duration // optional; emitted as Retry-After (REST) / RetryInfo (gRPC)
+    Public     Public        // everything the user may see (all optional)
 }
 
 // Public is, by definition, the COMPLETE set of fields that can cross the wire.
@@ -187,6 +188,11 @@ actionable), routed through the same `Localizer` so they are translatable. Globa
 overridable via `herr.SetDefaults(...)`. Used only as the floor — never override an
 explicit message.
 
+herr ships these floor messages as **embedded translation bundles**: **`en`
+(default, always on)** and **`id` (Indonesian)** first-class, with more locales
+addable. Boundary: herr ships translations **only for its own floor messages** —
+your catalog/domain messages are yours to localize via the `Localizer`.
+
 ---
 
 ## 9. Response Body (flat, client-rendered)
@@ -200,6 +206,7 @@ re-localize however it wants.
   "title": "Unable to connect your account",
   "message": "We couldn't connect your account due to a technical issue on our end.",
   "reassurance": "Your changes were saved.",
+  "retryable": true,
   "metadata": { "support_url": "https://amartha.com/support", "incident_id": "8f3a-..." },
   "traceId": "f1c2-..."
 }
@@ -207,6 +214,8 @@ re-localize however it wants.
 
 - **No** `display`, `severity`, `style`, or `actions` on the wire — those are client
   decisions. herr ships **no** reference renderers.
+- `retryable` (+ `Retry-After` header / gRPC `RetryInfo`) is a protocol semantic, not
+  presentation — it tells the client/proxy *whether and when* to retry, not how to look.
 - A client that localizes its own UI may ignore the localized text and use
   `code` + `metadata` + `params` instead.
 - `metadata` is part of the **public** surface; only safe values belong there
@@ -217,7 +226,8 @@ re-localize however it wants.
 ## 10. The Safe Split (Security Model)
 
 - The wire allowlist is exactly: `code`, `Public.Title`, `Public.Message`,
-  `Public.Reassurance`, `Public.Metadata` (+ dynamic `pubMeta`), `traceId`.
+  `Public.Reassurance`, `Public.Metadata` (+ dynamic `pubMeta`), `retryable`,
+  `retryAfter`, `traceId`.
 - Internal data (`internal`, internal `fields`, `cause`, `stack`) lives in
   **unexported** fields — external reflection cannot reach it.
 - **Whitelist serialization:** a single `(e *Error) wire(locale) wireError` builds an
@@ -244,9 +254,10 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 ## 12. Transports (all v1)
 
 - **httperr:** `Middleware`, `Write(w, r, err)`, JSON body, status from error,
-  `Retry-After` when `Retryable`, locale from `Accept-Language` (allowlist, §14).
+  `Retry-After` header from `Retryable`/`RetryAfter`, locale from `Accept-Language`
+  (allowlist, §14).
 - **grpcerr:** unary + stream interceptors → `status.Status` with whitelisted
-  details; locale from metadata.
+  details, `RetryInfo` from `Retryable`/`RetryAfter`; locale from metadata.
 - **wserr:** error → close code + public reason (≤123 bytes, UTF-8 safe);
   helper to send the control frame; locale from handshake.
 
@@ -272,7 +283,7 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 | **H1** | herr emits **no presentation** on the wire and ships no renderers; the response is a flat public body (text + free-form public metadata). All rendering/UI is the client's. |
 | **H2** | Ship `herr.ErrInvalidCredentials` (coarse). Precise auth reason → logs only. Lint warns on multiple identity/auth-specific codes. |
 | **H3** | Named-placeholder `{param}` substitution only — never `Sprintf` with user input as format. Missing param → empty (prod) / visible + warn (StrictMode), never panic. Ship `herr.MaskEmail/MaskPhone`. Lint flags PII-shaped params **and public `Metadata` values**. |
-| **H4** | Locale resolved against a configured supported-locale allowlist (`SetSupportedLocales`) via `x/text/language`; caches keyed on resolved locale, never raw header; cap parsed tags. |
+| **H4** | Locale resolved against a supported-locale allowlist via `x/text/language`; default allowlist is **`en`** (always on), extendable via `SetSupportedLocales` (built-in `id` bundle available); caches keyed on resolved locale, never raw header; cap parsed tags. |
 | **H5** | Cheap error path: conditional stack capture (server/Internal only, or `.WithStack()`); lazy alloc of `params`/`pubMeta`/`fields`; no-4xx-logging default; bounds on field count (≤64), metadata entries (≤64), and string length, with truncation markers. |
 
 ### Global-safety riders
@@ -325,11 +336,21 @@ defaults + cookbook + `StrictMode`; all §14 hardening.
 
 ---
 
-## 19. Open Questions
+## 19. Resolved Decisions
 
-- **Retryable:** keep as a top-level semantic (drives `Retry-After`), or fold into
-  `metadata` and let teams set `Retry-After` themselves?
-- **Default locale set:** ship with `en` only out of the box, or require explicit
-  `SetSupportedLocales`?
-- **Reassurance/Title:** keep both as structured text fields, or collapse to just
-  `Message` + `Metadata` for an even leaner public surface?
+- **Retryable → typed, kept.** It is a *protocol semantic*, not free-form data:
+  it drives `Retry-After` (REST) and `RetryInfo` (gRPC), and gives clients a stable,
+  schema-typed retry signal. Paired with optional `RetryAfter`. Metadata is reserved
+  for open-ended, team-specific data; protocol semantics stay typed.
+- **Locales → `en` default + built-in `id`.** `en` is always on (zero config);
+  herr ships embedded floor-message bundles for `en` and `id`, extendable via
+  `SetSupportedLocales`. herr translates only its own floor messages.
+- **Title/Message/Reassurance → all kept.** The message anatomy is a *closed,
+  universal, tooling-relevant* schema: stable for every client to lay out, and
+  lintable by `StrictMode` (e.g. nudging teams to include reassurance). Open-ended
+  data goes in `metadata`. Guiding line: **typed = closed/universal/tooling-relevant;
+  metadata = open/team-specific.**
+
+## 20. Open Questions
+
+_None outstanding — ready for implementation planning._
