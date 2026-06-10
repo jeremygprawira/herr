@@ -38,6 +38,10 @@ type Error struct {
 	// override be optional without an extra bool.
 	httpStatus int
 
+	// retry is the explicit tri-state retryability claim (RetryUnset = no claim). The
+	// effective value is resolved against Kind at render time; see resolveRetry.
+	retry Retry
+
 	// public is the user-facing surface: the ONLY data that may be serialized to the
 	// client. It is exported as a struct (herr.Public) but stored here unexported so the
 	// wire DTO — not reflection over *Error — controls exactly what is emitted.

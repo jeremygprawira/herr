@@ -17,6 +17,11 @@ type wireError struct {
 	Title    string         `json:"title,omitempty"`
 	Message  string         `json:"message,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
+
+	// Retryable is a POINTER so the tri-state survives serialization: nil → field
+	// omitted ("unknown"), &true / &false → an explicit claim. A plain bool could not
+	// express "unknown" and would wrongly emit `false` for unset errors.
+	Retryable *bool `json:"retryable,omitempty"`
 }
 
 // wire builds the safe DTO for a given locale.
@@ -32,10 +37,27 @@ func (e *Error) wire(locale string) wireError {
 		return wireError{Code: "INTERNAL"}
 	}
 	return wireError{
-		Code:     e.code,
-		Title:    e.public.Title,
-		Message:  e.public.Message,
-		Metadata: e.mergedMetadata(),
+		Code:      e.code,
+		Title:     e.public.Title,
+		Message:   e.public.Message,
+		Metadata:  e.mergedMetadata(),
+		Retryable: retryablePtr(e.resolveRetry()),
+	}
+}
+
+// retryablePtr converts the resolved tri-state into the *bool the wire DTO needs:
+// RetryYes → &true, RetryNo → &false, RetryUnset → nil (omitted). This is where
+// "unknown" becomes "absent from the body".
+func retryablePtr(r Retry) *bool {
+	switch r {
+	case RetryYes:
+		v := true
+		return &v
+	case RetryNo:
+		v := false
+		return &v
+	default:
+		return nil
 	}
 }
 
