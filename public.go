@@ -33,6 +33,7 @@ func (e *Error) Public(p Public) *Error {
 		return nil
 	}
 	e.public = p
+	e.msgInline = true // set at the call site → wins over translations
 	return e
 }
 
@@ -52,5 +53,6 @@ func (e *Error) Message(msg string) *Error {
 		return nil
 	}
 	e.public.Message = msg
+	e.msgInline = true // set at the call site → wins over translations
 	return e
 }

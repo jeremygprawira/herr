@@ -59,6 +59,12 @@ type Error struct {
 	// wire DTO — not reflection over *Error — controls exactly what is emitted.
 	public Public
 
+	// msgInline records whether Message was set at the CALL SITE (via .Message/.Public)
+	// rather than inherited from a catalog Class. It lets the resolver give an inline
+	// message top priority over translations, while still letting a catalog's literal
+	// message act as a translation fallback. See resolveMessage.
+	msgInline bool
+
 	// pubMeta holds dynamic public metadata added at the call site via WithPublic. It is
 	// merged with public.Metadata at render time. Kept separate (and lazily allocated)
 	// so the static catalog Metadata is never mutated by per-request additions.

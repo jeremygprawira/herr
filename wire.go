@@ -50,7 +50,7 @@ func (e *Error) wire(locale string) wireError {
 		// Title/Message are run through the injection-safe template substituter so any
 		// {name} placeholders are filled from params before they reach the client.
 		Title:      substitute(e.public.Title, e.params),
-		Message:    e.resolveMessage(),
+		Message:    e.resolveMessage(locale),
 		Metadata:   e.mergedMetadata(),
 		Retryable:  retryablePtr(e.resolveRetry()),
 		RetryAfter: retryAfterSeconds(e.retryAfter),
@@ -83,15 +83,12 @@ func retryablePtr(r Retry) *bool {
 	}
 }
 
-// resolveMessage applies the public-message resolution chain (the parts implemented so
-// far): an explicit, template-substituted Message wins; otherwise the built-in Kind floor
-// is used so the body is never blank. The i18n steps (explicit/derived keys) will slot in
-// ahead of the floor in a later step.
-func (e *Error) resolveMessage() string {
-	if msg := substitute(e.public.Message, e.params); msg != "" {
-		return msg
-	}
-	return defaultMessage(e.kind)
+// Body returns the safe, localized wire representation of the error for the given locale,
+// ready to be JSON-encoded by a transport (or inspected in tests). It is the public
+// entry point to the same allow-listed DTO that MarshalJSON uses; passing the request
+// locale here is how transports get translated messages.
+func (e *Error) Body(locale string) any {
+	return e.wire(locale)
 }
 
 // mergedMetadata combines the static catalog metadata (public.Metadata) with the dynamic
