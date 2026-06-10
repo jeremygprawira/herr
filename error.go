@@ -41,6 +41,11 @@ type Error struct {
 	// override be optional without an extra bool.
 	httpStatus int
 
+	// grpcCode / wsClose are EXPLICIT transport-code overrides. Their zero values
+	// (GRPCOK / 0) are never valid for an error, so zero cleanly means "derive from Kind".
+	grpcCode GRPCCode
+	wsClose  int
+
 	// retry is the explicit tri-state retryability claim (RetryUnset = no claim). The
 	// effective value is resolved against Kind at render time; see resolveRetry.
 	retry Retry
