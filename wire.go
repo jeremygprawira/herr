@@ -50,7 +50,7 @@ func (e *Error) wire(locale string) wireError {
 		// Title/Message are run through the injection-safe template substituter so any
 		// {name} placeholders are filled from params before they reach the client.
 		Title:      substitute(e.public.Title, e.params),
-		Message:    substitute(e.public.Message, e.params),
+		Message:    e.resolveMessage(),
 		Metadata:   e.mergedMetadata(),
 		Retryable:  retryablePtr(e.resolveRetry()),
 		RetryAfter: retryAfterSeconds(e.retryAfter),
@@ -81,6 +81,17 @@ func retryablePtr(r Retry) *bool {
 	default:
 		return nil
 	}
+}
+
+// resolveMessage applies the public-message resolution chain (the parts implemented so
+// far): an explicit, template-substituted Message wins; otherwise the built-in Kind floor
+// is used so the body is never blank. The i18n steps (explicit/derived keys) will slot in
+// ahead of the floor in a later step.
+func (e *Error) resolveMessage() string {
+	if msg := substitute(e.public.Message, e.params); msg != "" {
+		return msg
+	}
+	return defaultMessage(e.kind)
 }
 
 // mergedMetadata combines the static catalog metadata (public.Metadata) with the dynamic
