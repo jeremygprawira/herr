@@ -6,10 +6,13 @@
 
 `herr` ("handle error") is a framework-, logger-, and i18n-library-agnostic Go
 package for producing errors that are simultaneously **safe** (nothing internal
-leaks to the client), **user-friendly** (a render-ready, localized, well-written
-message), and **developer-friendly** (full internal detail + structured fields go
-to logs). It works across REST, gRPC, and WebSocket, and across the repository,
-usecase, and handler layers.
+leaks to the client), **user-friendly** (a clear, localized message + free-form
+public metadata), and **developer-friendly** (full internal detail + structured
+fields go to logs). It works across REST, gRPC, and WebSocket, and across the
+repository, usecase, and handler layers.
+
+`herr` provides **data, not presentation.** It ships no frontend/rendering — the
+client owns all UI and may render and localize however it wants.
 
 ---
 
@@ -20,8 +23,9 @@ usecase, and handler layers.
   **internal surface** (logs only), with the boundary enforced structurally.
 - **Flexibility first:** `Code` is the only required field; everything else is
   optional and auto-derived, and every default is overridable.
-- Encode the Wix "anatomy of a good error message" (what happened / why /
-  reassurance / way out / help) as optional, structured, render-ready data.
+- Express the human anatomy of a good message (what happened / why / reassurance)
+  as optional structured text, plus a **free-form public metadata bag** for
+  anything else the team wants the client to have.
 - Be agnostic: core imports **zero** third-party logging or i18n libraries.
 - Ship REST, gRPC, and WebSocket adapters in v1.
 
@@ -30,7 +34,8 @@ usecase, and handler layers.
   `Localizer` interface).
 - Not a copywriting tool — it **enforces** message quality, it does not **write**
   brand voice.
-- Not a UI toolkit — the API carries presentation **semantics**, not pixels.
+- **Not a UI toolkit, and carries no presentation on the wire** — no
+  styles, no severities, no buttons. The client decides everything visual.
 
 ---
 
@@ -41,9 +46,11 @@ usecase, and handler layers.
    default can be overridden or disabled. Magic is always a fallback, never a trap.
 3. **Default-safe.** Anything not explicitly public is internal. Unhandled / non-herr
    errors render as a generic safe message — never blank, never leaking.
-4. **One boundary.** Everything the client can see lives in one place (`Public`);
-   everything else is internal by construction.
-5. **Agnostic core.** No logging/i18n/framework deps in `herr` core; integrations are
+4. **One boundary.** Everything the client can see lives in the public surface
+   (`Public`, incl. its `Metadata`); everything else is internal by construction.
+5. **Data, not presentation.** herr emits structured, safe, optionally-localized
+   data. Rendering is entirely the client's.
+6. **Agnostic core.** No logging/i18n/framework deps in `herr` core; integrations are
    optional sub-packages behind tiny interfaces.
 
 ---
@@ -69,29 +76,20 @@ Everything outside `herr/` core is opt-in; import only what you use.
 // Class is an immutable catalog template. Never mutated after Define().
 type Class struct {
     Code      string        // REQUIRED, stable, machine-readable
-    Kind      Kind          // category; drives default HTTP/gRPC/WS/severity
+    Kind      Kind          // category; drives default HTTP/gRPC/WS codes
     HTTP      int           // optional override of Kind default
     GRPC      codes.Code    // optional override
     WS        int           // optional override (close code)
-    Retryable bool          // semantic; derives a retry action + Retry-After
+    Retryable bool          // optional; sets Retry-After on retryable transports
     Public    Public        // everything the user may see (all optional)
 }
 
 // Public is, by definition, the COMPLETE set of fields that can cross the wire.
 type Public struct {
-    Title       string    // "what happened"           (optional)
-    Message     string    // main text / "why"          (optional; floor fallback)
-    Reassurance string    // "what's safe"              (optional)
-    Support     *Support  // "way out / help"           (optional)
-    Actions     []Action  // derived from Retryable/Support if omitted (optional)
-}
-
-type Support struct { Label, URL string }
-
-type Action struct {
-    Type  ActionType // retry | link | dismiss | navigate | support
-    Label string
-    URL   string     // for link/navigate
+    Title       string         // "what happened"   (optional)
+    Message     string         // main text / "why"  (optional; floor fallback)
+    Reassurance string         // "what's safe"      (optional)
+    Metadata    map[string]any // free-form, crosses the wire — put anything (optional)
 }
 
 // Error is the single runtime type. Internal fields are UNEXPORTED so external
@@ -99,10 +97,10 @@ type Action struct {
 type Error struct {
     class    *Class            // read-only reference for defaults
     code     string
-    // public (lazily set)
+    // public (lazily set) — the ONLY data that crosses the wire
     public   Public
+    pubMeta  map[string]any    // dynamic public metadata (.WithPublic); nil until used
     params   map[string]any    // template params; nil until used
-    pubFields []Field          // explicitly-public structured fields; nil until used
     // internal — logs only, never serialized to client
     internal  string
     fields    []Field          // internal structured context; nil until used
@@ -111,7 +109,7 @@ type Error struct {
     traceID   string
 }
 
-type Field struct { Key string; Val any; Visible Visibility } // Internal (default) | Public
+type Field struct { Key string; Val any }
 ```
 
 `*Error` implements `error`, `Unwrap() error`, and is `errors.Is`/`errors.As`
@@ -125,15 +123,20 @@ compatible (`Is` matches by `Code`).
 // A) Catalog (recommended for shared/domain errors)
 var ErrAccountConnect = herr.Define(herr.Class{
     Code:      "ACCOUNT_CONNECT_FAILED",
-    Kind:      herr.KindUnavailable,           // "our end" → server-owned, retryable
+    Kind:      herr.KindUnavailable,           // "our end" → server-owned
     HTTP:      502,
     Retryable: true,
     Public: herr.Public{
-        Message: "We couldn't connect your account due to a technical issue on our end. Please try again.",
-        Support: &herr.Support{Label: "Customer Care", URL: "https://amartha.com/support"},
+        Message:  "We couldn't connect your account due to a technical issue on our end. Please try again.",
+        Metadata: map[string]any{"support_url": "https://amartha.com/support"},
     },
 })
-return ErrAccountConnect.New().Reassure("Your changes were saved.").With("upstream", "kyc-svc").Wrap(err)
+
+return ErrAccountConnect.New().
+    Reassure("Your changes were saved.").  // public text
+    WithPublic("incident_id", id).         // → wire metadata (safe)
+    With("upstream", "kyc-svc").           // → logs only
+    Wrap(err)
 
 // B) Inline (no catalog required)
 return herr.New("ACCOUNT_CONNECT_FAILED").
@@ -146,8 +149,8 @@ return herr.New("ACCOUNT_CONNECT_FAILED").
 
 ### Builder surface (all return `*Error`, chainable, nil-safe)
 `.Kind` `.Status` `.GRPC` `.WS` `.Public` `.Title` `.Message` `.Reassure`
-`.Support` `.Action` `.Param/.Params` `.With` (internal field) `.WithPublic`
-(public field) `.Internal/.Internalf` `.Trace` `.WithStack` `.Wrap`.
+`.Meta`/`.WithPublic` (public metadata) `.Param/.Params` `.With` (internal field)
+`.Internal/.Internalf` `.Trace` `.WithStack` `.Wrap`.
 
 ---
 
@@ -156,12 +159,10 @@ return herr.New("ACCOUNT_CONNECT_FAILED").
 | Field | Auto-derived from | Override |
 |---|---|---|
 | `HTTP` / `GRPC` / `WS` | `Kind` | set explicitly |
-| `display.severity` | `Kind` | set explicitly |
 | i18n keys | `Code` → `errors.<code>.{title,message,reassurance}` | set explicit key / disable |
-| `actions` | `Retryable` + `Support` | explicit `Actions[]` |
 | public message | resolution chain (§7) | inline `.Public()` |
 
-Writing just `Code` yields a working, render-ready, localized-if-available error.
+Writing just `Code` yields a working, localized-if-available error.
 
 ---
 
@@ -181,48 +182,44 @@ public text is localized; internal/log text stays one language.**
 
 ## 8. Built-in Default Messages
 
-~10 calm, Wix-principled fallbacks keyed by `Kind` (own-it for 5xx, no blame,
-actionable, support path), routed through the same `Localizer` so they are
-translatable. Globally overridable via `herr.SetDefaults(...)`. Used only as the
-floor — never override an explicit message.
+~10 calm, well-written fallbacks keyed by `Kind` (own-it for 5xx, no blame,
+actionable), routed through the same `Localizer` so they are translatable. Globally
+overridable via `herr.SetDefaults(...)`. Used only as the floor — never override an
+explicit message.
 
 ---
 
-## 9. Render-Ready `display` (semantic-only)
+## 9. Response Body (flat, client-rendered)
 
-The response carries a `display` object with **semantics**, never presentation:
+The wire body is flat, safe, and presentation-free. The client renders and may
+re-localize however it wants.
 
 ```json
 {
   "code": "ACCOUNT_CONNECT_FAILED",
-  "traceId": "f1c2-...",
-  "display": {
-    "severity": "error",
-    "title": "Unable to connect your account",
-    "message": "We couldn't connect your account due to a technical issue on our end.",
-    "reassurance": "Your changes were saved.",
-    "actions": [
-      { "type": "retry",   "label": "Try Again" },
-      { "type": "support", "label": "Contact Customer Care", "url": "https://amartha.com/support" }
-    ]
-  }
+  "title": "Unable to connect your account",
+  "message": "We couldn't connect your account due to a technical issue on our end.",
+  "reassurance": "Your changes were saved.",
+  "metadata": { "support_url": "https://amartha.com/support", "incident_id": "8f3a-..." },
+  "traceId": "f1c2-..."
 }
 ```
 
-- **No** `style` (modal/toast) and **no** button hierarchy on the wire — that is the
-  client's decision (fixes backend-driven-UI coupling).
-- Reference renderers (`@herr/react`, Flutter `HerrErrorView`) map
-  `severity → presentation` and `action.type → behavior/emphasis`, fully
-  overridable. Shipped as **fast-follow**.
-- Clients may instead consume `code` + `params` and localize/render fully
-  client-side (dual mode — avoids double-localization conflicts).
+- **No** `display`, `severity`, `style`, or `actions` on the wire — those are client
+  decisions. herr ships **no** reference renderers.
+- A client that localizes its own UI may ignore the localized text and use
+  `code` + `metadata` + `params` instead.
+- `metadata` is part of the **public** surface; only safe values belong there
+  (internal context goes through `.With(...)`).
 
 ---
 
 ## 10. The Safe Split (Security Model)
 
-- `Public` is the **only** thing that crosses the wire. Internal data
-  (`internal`, internal `fields`, `cause`, `stack`) lives in **unexported** fields.
+- The wire allowlist is exactly: `code`, `Public.Title`, `Public.Message`,
+  `Public.Reassurance`, `Public.Metadata` (+ dynamic `pubMeta`), `traceId`.
+- Internal data (`internal`, internal `fields`, `cause`, `stack`) lives in
+  **unexported** fields — external reflection cannot reach it.
 - **Whitelist serialization:** a single `(e *Error) wire(locale) wireError` builds an
   explicit allowlisted DTO. `MarshalJSON` delegates to it, so even an accidental
   `json.Marshal(err)` is safe. No reflection over the full struct, ever.
@@ -247,7 +244,7 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 ## 12. Transports (all v1)
 
 - **httperr:** `Middleware`, `Write(w, r, err)`, JSON body, status from error,
-  locale from `Accept-Language` (allowlist-matched, §14).
+  `Retry-After` when `Retryable`, locale from `Accept-Language` (allowlist, §14).
 - **grpcerr:** unary + stream interceptors → `status.Status` with whitelisted
   details; locale from metadata.
 - **wserr:** error → close code + public reason (≤123 bytes, UTF-8 safe);
@@ -272,11 +269,11 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 |---|---|
 | **C1** | `Class` immutable; **all** per-request state lives on the instance, lazily allocated. Builder never writes through to `Class`. Verified by a `-race` concurrency test hammering one catalog entry. |
 | **C2** | Whitelist serialization via explicit `wireError` DTO; internal fields unexported; `MarshalJSON` emits only the safe DTO. Verified by a fuzz test that injects secret markers into every internal field and asserts they never appear in any render. |
-| **H1** | `display` is semantic-only (no `style`/button hierarchy). Presentation lives in client renderers. |
+| **H1** | herr emits **no presentation** on the wire and ships no renderers; the response is a flat public body (text + free-form public metadata). All rendering/UI is the client's. |
 | **H2** | Ship `herr.ErrInvalidCredentials` (coarse). Precise auth reason → logs only. Lint warns on multiple identity/auth-specific codes. |
-| **H3** | Named-placeholder `{param}` substitution only — never `Sprintf` with user input as format. Missing param → empty (prod) / visible + warn (StrictMode), never panic. Ship `herr.MaskEmail/MaskPhone`. Lint flags PII-shaped params in public text. |
+| **H3** | Named-placeholder `{param}` substitution only — never `Sprintf` with user input as format. Missing param → empty (prod) / visible + warn (StrictMode), never panic. Ship `herr.MaskEmail/MaskPhone`. Lint flags PII-shaped params **and public `Metadata` values**. |
 | **H4** | Locale resolved against a configured supported-locale allowlist (`SetSupportedLocales`) via `x/text/language`; caches keyed on resolved locale, never raw header; cap parsed tags. |
-| **H5** | Cheap error path: conditional stack capture (server/Internal only, or `.WithStack()`); lazy alloc of `params`/`fields`/`actions`; no-4xx-logging default; bounds on field count (≤64), validation entries (≤100), and string length, with truncation markers. |
+| **H5** | Cheap error path: conditional stack capture (server/Internal only, or `.WithStack()`); lazy alloc of `params`/`pubMeta`/`fields`; no-4xx-logging default; bounds on field count (≤64), metadata entries (≤64), and string length, with truncation markers. |
 
 ### Global-safety riders
 - `traceID` is random (UUID / propagated OTel id), never sequential.
@@ -287,12 +284,11 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 
 ## 15. Message-Quality Layer
 
-- **Cookbook (docs):** the Wix principles as a checklist + good/bad pairs; built-ins
-  as worked examples. Ships in v1.
+- **Cookbook (docs):** the principles as a checklist + good/bad pairs; built-ins as
+  worked examples. Ships in v1.
 - **`herr.StrictMode()` (v1):** runtime/test validation — empty public message on a
-  user-facing kind, `public == internal`, unfilled placeholders, missing
-  support/way-out on 5xx, PII params, length bounds. Fails tests so bad messages
-  can't merge.
+  user-facing kind, `public == internal`, unfilled placeholders, PII in params or
+  public metadata, length/count bounds. Fails tests so bad messages can't merge.
 - **`herrlint` (fast-follow):** `go vet`-style static analyzer for the same rules at
   CI time, plus the enumeration-oracle heuristic (H2).
 - Honest caveat (documented): these catch leaks/blame/jargon/missing-pieces, not
@@ -313,9 +309,9 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 
 ## 17. Stability Contract
 
-`Code` values and the response JSON schema (including `display.actions[].type`) are
-the public API, governed by semver. Public **message text** may change freely;
-`Code` values never silently change. Clients must ignore unknown `action.type`.
+`Code` values and the response JSON schema are the public API, governed by semver.
+Public **message text** may change freely; `Code` values never silently change.
+`metadata` is free-form; teams own their own metadata keys' stability.
 
 ---
 
@@ -325,15 +321,15 @@ the public API, governed by semver. Public **message text** may change freely;
 adapter; logger `Logger` interface + zap/logrus/zerolog/slog adapters; built-in
 defaults + cookbook + `StrictMode`; all §14 hardening.
 
-**Fast-follow (own specs):** `cmd/herrlint`; reference renderers `@herr/react` and
-Flutter `HerrErrorView`; `goi18n`/`xtext` localizer adapters.
+**Fast-follow (own specs):** `cmd/herrlint`; `goi18n`/`xtext` localizer adapters.
 
 ---
 
 ## 19. Open Questions
 
-- Should `display` be emitted always, or gated by an `Accept` / opt-in header so
-  pure service-to-service consumers get a leaner body?
-- Default supported-locale set out of the box (e.g. `en` only) vs require explicit
+- **Retryable:** keep as a top-level semantic (drives `Retry-After`), or fold into
+  `metadata` and let teams set `Retry-After` themselves?
+- **Default locale set:** ship with `en` only out of the box, or require explicit
   `SetSupportedLocales`?
-- Is `navigate` action in-scope for v1 or fast-follow with the renderers?
+- **Reassurance/Title:** keep both as structured text fields, or collapse to just
+  `Message` + `Metadata` for an even leaner public surface?
