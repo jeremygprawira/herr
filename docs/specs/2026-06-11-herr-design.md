@@ -303,6 +303,14 @@ default (configurable, sampleable) — prevents attacker-driven 4xx log floods.
 - Global config (`SetLocalizer/SetDefaults/SetLogger/SetSupportedLocales`) is
   init-time only, backed by `atomic.Value`.
 
+### Medium (also addressed)
+| # | Requirement |
+|---|---|
+| **M1** | **i18n key drift:** a missing translation silently falls back to literal. `StrictMode`/`herrlint` warn when some `errors.<code>.*` keys resolve for a locale but siblings don't, so renamed `Code`s / partial bundles surface instead of degrading quietly. |
+| **M2** | **Log injection:** control characters / CRLF in `internal` messages and field values are sanitized/escaped before text logging (structured logging preferred). Prevents forged log lines from attacker-controlled input echoed into errors. |
+| **M3** | **Lossy code mapping:** `Kind`→HTTP/gRPC/WS is documented per-`Kind` and always overridable; adapters never silently guess for ambiguous kinds (fall back to a documented default + the explicit override path). |
+| **M4** | **Metadata URLs:** `herrlint` flags external/unvalidated URL values in public `metadata` (open-redirect/phishing surface); teams declare an allowed-host list. Metadata size/count already bounded by H5. |
+
 ---
 
 ## 15. Message-Quality Layer
