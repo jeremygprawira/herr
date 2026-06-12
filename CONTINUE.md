@@ -64,6 +64,34 @@ REMAINING in Phase 1 (start here, keep TDD one-test-at-a-time):
 - [ ] H5 string-length caps (truncate long internal msg / field / metadata string values)
 - [ ] random default traceID generator helper (riders) — used by transports when unset
 
+### Phase 1b — Validation / field errors + multi-error interop  (designed, not built)
+Build in TWO TDD steps, in this order:
+
+1. **Native field errors**
+   - [ ] `KindUnprocessable` → HTTP 422 (add to `kind.go` maps: HTTP 422, gRPC InvalidArgument, retry No)
+   - [ ] `herr.FieldError(field, code, message) *Error` — a herr error carrying a `field`
+     path; its PUBLIC parts are `{field, code, message}` only.
+   - [ ] `.FieldError(field, code, msg)` builder on a parent to append children (returns all
+     at once). Parent renders a typed, top-level **`errors[]`** in the wire DTO (NOT in
+     metadata). Each `message` localizable via the same chain; H5-bound the array (cap ~100).
+   - [ ] Per-field internal detail (rejected value, validator reason) stays in logs via the
+     normal `.With(...)` channel — NEVER auto-included in the public `errors[]` (PII/leak).
+
+2. **Multi-error interop (zero new deps — structural interface checks)**
+   - [ ] On render + on `LogRecord`, detect aggregates structurally:
+     `interface{ Unwrap() []error }` (stdlib `errors.Join`, Go 1.20+) AND
+     `interface{ WrappedErrors() []error }` (hashicorp/go-multierror). NO import of either.
+   - [ ] Flatten children: a child that is a `*herr.Error` field-error → promote to public
+     `errors[]` using only its public parts; any OTHER error child → **logs only**
+     (never leak arbitrary error strings to the client — preserves C2).
+   - [ ] Works for both `.Wrap(errors.Join(...))` and `.Wrap(multierror)`; the dev keeps
+     using whatever aggregator they like.
+
+Decision rationale (don't re-litigate): `errors[]` is **front-end-facing** (the UI renders
+per-field messages), NOT a developer/log channel. We do NOT depend on go-multierror
+(violates zero-dep core; superseded by stdlib `errors.Join` on our Go 1.26) — we speak its
+interface structurally instead. herr is "multi-error-agnostic" like it is logger/i18n-agnostic.
+
 ### Phase 2 — i18n
 - [ ] `SetSupportedLocales` + `x/text/language` matching (H4)
 - [ ] `localizer/mapl` (map-based)
