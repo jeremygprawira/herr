@@ -146,3 +146,26 @@ func TestLog_DetailAttrsOmittedWhenEmpty(t *testing.T) {
 		t.Errorf("want code=BARE, got %v", a["code"])
 	}
 }
+
+// TestLog_FieldsBecomeAttrs verifies each internal structured Field is emitted as its own
+// attribute keyed by Field.Key, carrying Field.Val unchanged.
+func TestLog_FieldsBecomeAttrs(t *testing.T) {
+	h, l := newCapture()
+	log := slogadapter.New(l)
+
+	log.Log(context.Background(), herr.Record{
+		Code: "BOOM",
+		Fields: []herr.Field{
+			{Key: "user_id", Val: int64(42)},
+			{Key: "region", Val: "us-east-1"},
+		},
+	})
+
+	a := h.records[0].attrs
+	if a["user_id"] != int64(42) {
+		t.Errorf("want user_id=42, got %v (%T)", a["user_id"], a["user_id"])
+	}
+	if a["region"] != "us-east-1" {
+		t.Errorf("want region=us-east-1, got %v", a["region"])
+	}
+}

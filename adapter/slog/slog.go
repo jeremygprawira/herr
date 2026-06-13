@@ -54,6 +54,12 @@ func (a *logger) Log(ctx context.Context, rec herr.Record) {
 		attrs = append(attrs, slog.String("cause", rec.Cause.Error()))
 	}
 
+	// Each internal structured field becomes its own top-level attribute, keyed by the
+	// field's own key, so debugging context (user ids, regions, ...) is queryable in logs.
+	for _, f := range rec.Fields {
+		attrs = append(attrs, slog.Any(f.Key, f.Val))
+	}
+
 	a.l.LogAttrs(ctx, level, rec.Code, attrs...)
 }
 
