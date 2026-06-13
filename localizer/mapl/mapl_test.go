@@ -4,8 +4,10 @@
 package mapl_test
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/jeremygeraldprawira/herr"
 	"github.com/jeremygeraldprawira/herr/localizer/mapl"
 )
 
@@ -81,5 +83,46 @@ func TestNew_CopiesInput(t *testing.T) {
 	}
 	if got, ok := l.Localize("en", "added", nil); ok || got != "" {
 		t.Errorf("Localize(late-added key) = (%q, %v), want (\"\", false)", got, ok)
+	}
+}
+
+// bodyMessage renders an error for a locale the way a transport would (JSON
+// encode the Body, decode it, read "message"). It exercises the real public
+// boundary rather than peeking at internals.
+func bodyMessage(t *testing.T, e *herr.Error, locale string) string {
+	t.Helper()
+	raw, err := json.Marshal(e.Body(locale))
+	if err != nil {
+		t.Fatalf("marshal Body failed: %v", err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	s, _ := m["message"].(string)
+	return s
+}
+
+// TestEndToEnd_PluggedIntoCore is the proof that mapl actually satisfies the
+// contract herr expects: installed via SetLocalizer, the core derives the key
+// "errors.<code>.message", asks the Localizer, and uses the translation it
+// returns. An untranslated locale falls through the core's chain to the Kind
+// floor — so a missing entry never leaks a raw key.
+func TestEndToEnd_PluggedIntoCore(t *testing.T) {
+	herr.SetLocalizer(mapl.New(map[string]map[string]string{
+		"id": {"errors.not_found.message": "Tidak ditemukan."},
+	}))
+	t.Cleanup(func() { herr.SetLocalizer(nil) })
+
+	// No inline message and no catalog literal → the resolver reaches the
+	// Localizer step and uses the translation for "id".
+	e := herr.New("NOT_FOUND").Kind(herr.KindNotFound)
+	if got := bodyMessage(t, e, "id"); got != "Tidak ditemukan." {
+		t.Errorf("id message = %q, want the Indonesian translation", got)
+	}
+
+	// "en" has no entry → the core falls back to the KindNotFound floor.
+	if got := bodyMessage(t, herr.New("NOT_FOUND").Kind(herr.KindNotFound), "en"); got != "We couldn't find what you're looking for." {
+		t.Errorf("en message = %q, want the KindNotFound floor fallback", got)
 	}
 }
