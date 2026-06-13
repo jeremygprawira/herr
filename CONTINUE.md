@@ -60,32 +60,25 @@ MORE DONE (cycles 8–15):
 REMAINING in Phase 1 (start here, keep TDD one-test-at-a-time):
 - [x] `SetDefaults(map[Kind]string)` to override the built-in floor (atomic, like SetLocalizer)
 - [x] explicit message key override (`.MessageKey(k)` / `Class.MessageKey`) — resolver asks the Localizer for `effectiveMessageKey()` (explicit, else derived)
-- [ ] `.WithStack()` + **conditional** stack capture (server/Internal kinds only — H5); expose in `Record.Stack`
-- [ ] H5 string-length caps (truncate long internal msg / field / metadata string values)
-- [ ] random default traceID generator helper (riders) — used by transports when unset
+- [x] `.WithStack()` + **conditional** stack capture (server-fault kinds only — H5); exposed in `Record.Stack`; C2 gate extended to prove the stack never leaks
+- [x] H5 string-length caps (truncate long internal msg / field / metadata string values; 8 KiB, rune-safe, visible marker)
+- [x] random default traceID generator helper — `NewTraceID()` (16 crypto-random bytes → 32 hex chars); used by transports when unset
 
 ### Phase 1b — Validation / field errors + multi-error interop  (designed, not built)
 Build in TWO TDD steps, in this order:
 
-1. **Native field errors**
-   - [ ] `KindUnprocessable` → HTTP 422 (add to `kind.go` maps: HTTP 422, gRPC InvalidArgument, retry No)
-   - [ ] `herr.FieldError(field, code, message) *Error` — a herr error carrying a `field`
-     path; its PUBLIC parts are `{field, code, message}` only.
-   - [ ] `.FieldError(field, code, msg)` builder on a parent to append children (returns all
-     at once). Parent renders a typed, top-level **`errors[]`** in the wire DTO (NOT in
-     metadata). Each `message` localizable via the same chain; H5-bound the array (cap ~100).
-   - [ ] Per-field internal detail (rejected value, validator reason) stays in logs via the
-     normal `.With(...)` channel — NEVER auto-included in the public `errors[]` (PII/leak).
+1. **Native field errors** ✅ DONE
+   - [x] `KindUnprocessable` → HTTP 422 (gRPC InvalidArgument, WS 1008, retry No, floor msg)
+   - [x] `herr.FieldError(field, code, message) *Error` — carries a `field` path; PUBLIC parts `{field, code, message}` only
+   - [x] `.FieldError(field, code, msg)` builder appends children; parent renders typed top-level **`errors[]`** (NOT metadata); each message localizes via the same chain; H5 cap 100 + `_errors_truncated` marker
+   - [x] Per-field internal `.With(...)` detail stays in logs, NEVER in public `errors[]` (C2 guard test)
 
-2. **Multi-error interop (zero new deps — structural interface checks)**
-   - [ ] On render + on `LogRecord`, detect aggregates structurally:
-     `interface{ Unwrap() []error }` (stdlib `errors.Join`, Go 1.20+) AND
-     `interface{ WrappedErrors() []error }` (hashicorp/go-multierror). NO import of either.
-   - [ ] Flatten children: a child that is a `*herr.Error` field-error → promote to public
-     `errors[]` using only its public parts; any OTHER error child → **logs only**
-     (never leak arbitrary error strings to the client — preserves C2).
-   - [ ] Works for both `.Wrap(errors.Join(...))` and `.Wrap(multierror)`; the dev keeps
-     using whatever aggregator they like.
+2. **Multi-error interop (zero new deps — structural interface checks)** ✅ DONE
+   - [x] `aggregateChildren` detects aggregates structurally: `interface{ Unwrap() []error }`
+     (stdlib `errors.Join`) AND `interface{ WrappedErrors() []error }` (go-multierror). NO imports.
+   - [x] `fieldErrors` promotes `*herr.Error` children (via `fieldEntry`, public parts only);
+     NON-herr children are never promoted (C2 guard) but stay visible to logs via the cause.
+   - [x] Works for `.Wrap(errors.Join(...))` and `.Wrap(multierror)`; H5-bounded combined list.
 
 Decision rationale (don't re-litigate): `errors[]` is **front-end-facing** (the UI renders
 per-field messages), NOT a developer/log channel. We do NOT depend on go-multierror
@@ -123,7 +116,11 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
 - Logger/i18n agnostic; core has zero third-party deps.
 
 ## Current state (read this to resume)
-- **48 tests + 1 fuzz, all green.** `go test ./...`, `go test -race ./...`, `go vet ./...` all pass.
+- **62 tests + 1 fuzz, all green.** `go test ./...`, `go test -race ./...`, `go vet ./...` all pass.
+- **Phase 1 core + Phase 1b COMPLETE.** Core is dependency-free. Added since last summary:
+  `WithStack` (conditional, server-fault only), H5 string caps, `NewTraceID`,
+  `KindUnprocessable`, native field errors (`FieldError` + `errors[]`), multi-error interop.
+- New source files: `stack.go` `trace.go` `field_errors.go` `multierror.go`.
 - **Both security gates proven & continuously re-verified:** C1 (`TestCatalog_*`, race-clean)
   and C2 (`TestSafeSplit_InternalNeverLeaks` + `FuzzWire_NeverLeaksInternal`, ~8M execs/run).
 - Source files (all commented): `error.go` `kind.go` `public.go` `wire.go` `fields.go`
