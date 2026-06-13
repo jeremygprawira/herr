@@ -186,3 +186,11 @@ func TestLog_StackPresentWhenSet(t *testing.T) {
 		t.Errorf("want stack omitted when empty")
 	}
 }
+
+// TestNew_NilLoggerIsSafe verifies that New(nil) returns a usable logger whose Log does
+// not panic — a misconfigured caller should never crash the request path.
+func TestNew_NilLoggerIsSafe(t *testing.T) {
+	log := slogadapter.New(nil)
+	// Must not panic.
+	log.Log(context.Background(), herr.Record{Code: "BOOM", HTTPStatus: 500})
+}

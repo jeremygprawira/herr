@@ -26,7 +26,13 @@ type logger struct {
 
 // New wraps a *slog.Logger so it can be handed to herr's transport adapters as a
 // herr.Logger sink. Every error herr decides to auto-log then flows into Log below.
+//
+// A nil logger is tolerated: rather than panic on the request path of a misconfigured
+// caller, New substitutes slog.Default() so errors still go somewhere visible.
 func New(l *slog.Logger) herr.Logger {
+	if l == nil {
+		l = slog.Default()
+	}
 	return &logger{l: l}
 }
 
