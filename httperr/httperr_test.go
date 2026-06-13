@@ -65,3 +65,36 @@ func TestWrite_RetryAfterHeader(t *testing.T) {
 		t.Errorf("Retry-After = %q, want it absent", got)
 	}
 }
+
+// stubLocalizer translates one (locale,key) pair; everything else falls through.
+type stubLocalizer struct{ locale, key, msg string }
+
+func (s stubLocalizer) Localize(locale, key string, _ map[string]any) (string, bool) {
+	if locale == s.locale && key == s.key {
+		return s.msg, true
+	}
+	return "", false
+}
+
+// TestWrite_LocaleFromAcceptLanguage proves the request's Accept-Language header drives the
+// rendered message: with a Localizer installed, an `id` request gets the Indonesian
+// translation while the default request keeps the literal message.
+func TestWrite_LocaleFromAcceptLanguage(t *testing.T) {
+	herr.SetLocalizer(stubLocalizer{
+		locale: "id", key: "errors.not_found.message", msg: "Tidak ditemukan.",
+	})
+	t.Cleanup(func() { herr.SetLocalizer(nil) })
+
+	// No inline message — so resolution reaches the Localizer step (an inline message would
+	// win over any translation).
+	makeErr := func() *herr.Error {
+		return herr.New("NOT_FOUND").Kind(herr.KindNotFound)
+	}
+
+	// Accept-Language: id → translated.
+	reqID := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqID.Header.Set("Accept-Language", "id-ID,id;q=0.9,en;q=0.8")
+	if _, body := decodeBody(t, makeErr(), reqID); body["message"] != "Tidak ditemukan." {
+		t.Errorf("id message = %v, want the Indonesian translation", body["message"])
+	}
+}

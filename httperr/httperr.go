@@ -73,7 +73,10 @@ func localeFrom(r *http.Request) string {
 	if header == "" {
 		return ""
 	}
-	// "en-US,en;q=0.9,id;q=0.8" → "en-US": take the first tag, drop any ;q= weight.
+	// "id-ID,id;q=0.9,en;q=0.8" → "id": take the first (most-preferred) tag, drop any ;q=
+	// weight, then reduce to the primary language subtag (before the first "-") so the
+	// common case — clients sending region tags, localizers keyed by language — just works.
+	// Region/script-aware matching against a supported-locale allow-list is the H4 upgrade.
 	tag := header
 	if i := strings.IndexByte(tag, ','); i >= 0 {
 		tag = tag[:i]
@@ -81,5 +84,9 @@ func localeFrom(r *http.Request) string {
 	if i := strings.IndexByte(tag, ';'); i >= 0 {
 		tag = tag[:i]
 	}
-	return strings.TrimSpace(tag)
+	tag = strings.TrimSpace(tag)
+	if i := strings.IndexByte(tag, '-'); i >= 0 {
+		tag = tag[:i]
+	}
+	return strings.ToLower(tag)
 }
