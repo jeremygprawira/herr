@@ -53,6 +53,25 @@ func (e *Error) RetryAfter(d time.Duration) *Error {
 	return e
 }
 
+// RetryAfterSeconds returns the suggested retry delay as whole seconds — the value a
+// transport needs to set an HTTP Retry-After header or a gRPC RetryInfo, without having to
+// decode the wire body. It rounds UP (a sub-second delay never reads as 0) and returns 0
+// when no delay was set (so the transport omits the header).
+func (e *Error) RetryAfterSeconds() int {
+	if e == nil {
+		return 0
+	}
+	return retryAfterSeconds(e.retryAfter)
+}
+
+// Retryable returns the EFFECTIVE retryability tri-state (explicit claim, else Kind-derived,
+// else RetryUnset). Transports use it to decide whether to advertise retryability — e.g.
+// whether to attach a gRPC RetryInfo — without decoding the wire body. It is the public face
+// of resolveRetry.
+func (e *Error) Retryable() Retry {
+	return e.resolveRetry()
+}
+
 // resolveRetry computes the EFFECTIVE tri-state using convention-with-override:
 //  1. an explicit Retry() claim wins, else
 //  2. a positive RetryAfter implies RetryYes, else

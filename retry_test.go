@@ -68,3 +68,19 @@ func TestRetry_TriState(t *testing.T) {
 		})
 	}
 }
+
+// TestRetryable_Accessor proves transports can read the EFFECTIVE retryability tri-state
+// directly (for a gRPC RetryInfo decision, say) and that it follows the same
+// convention-with-override rule as the wire `retryable` field: explicit wins, else derived
+// from Kind, else RetryUnset ("unknown").
+func TestRetryable_Accessor(t *testing.T) {
+	if got := herr.New("BOOM").Retryable(); got != herr.RetryUnset {
+		t.Errorf("neutral kind Retryable() = %v, want RetryUnset", got)
+	}
+	if got := herr.New("DOWN").Kind(herr.KindUnavailable).Retryable(); got != herr.RetryYes {
+		t.Errorf("KindUnavailable Retryable() = %v, want RetryYes", got)
+	}
+	if got := herr.New("DOWN").Kind(herr.KindUnavailable).Retry(herr.RetryNo).Retryable(); got != herr.RetryNo {
+		t.Errorf("explicit override Retryable() = %v, want RetryNo", got)
+	}
+}
