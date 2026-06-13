@@ -2,8 +2,10 @@ package httperr_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,5 +98,25 @@ func TestWrite_LocaleFromAcceptLanguage(t *testing.T) {
 	reqID.Header.Set("Accept-Language", "id-ID,id;q=0.9,en;q=0.8")
 	if _, body := decodeBody(t, makeErr(), reqID); body["message"] != "Tidak ditemukan." {
 		t.Errorf("id message = %v, want the Indonesian translation", body["message"])
+	}
+}
+
+// TestWrite_NonHerrErrorIsSafe500 proves the boundary holds for a PLAIN error: Write turns
+// it into a 500 with a calm generic body, and the raw error string (which may carry
+// internals) never reaches the client.
+func TestWrite_NonHerrErrorIsSafe500(t *testing.T) {
+	const secret = "pq: password authentication failed for user app"
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	rec, body := decodeBody(t, errors.New(secret), req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "password authentication failed") {
+		t.Errorf("LEAK: raw error surfaced in body: %s", rec.Body.String())
+	}
+	if msg, _ := body["message"].(string); msg == "" {
+		t.Error("a 500 must still carry a non-empty, safe message")
 	}
 }
