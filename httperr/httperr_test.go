@@ -120,3 +120,49 @@ func TestWrite_NonHerrErrorIsSafe500(t *testing.T) {
 		t.Error("a 500 must still carry a non-empty, safe message")
 	}
 }
+
+// TestMiddleware_RecoversPanic proves the safety net: a handler that panics is turned into
+// a safe 500 herr response instead of a dropped connection, and the panic value (which may
+// carry internals) never reaches the client body.
+func TestMiddleware_RecoversPanic(t *testing.T) {
+	const secret = "panic: nil pointer at secret/internal/path.go:42"
+	panicky := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic(secret)
+	})
+
+	rec := httptest.NewRecorder()
+	httperr.Middleware(panicky).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "secret/internal/path.go") {
+		t.Errorf("LEAK: panic value surfaced in body: %s", rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("recovered response is not valid JSON: %v", err)
+	}
+	if msg, _ := body["message"].(string); msg == "" {
+		t.Error("recovered 500 must still carry a safe message")
+	}
+}
+
+// TestMiddleware_PassesThroughSuccess proves the middleware is transparent on the happy
+// path: a handler that writes normally is untouched.
+func TestMiddleware_PassesThroughSuccess(t *testing.T) {
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	})
+
+	rec := httptest.NewRecorder()
+	httperr.Middleware(ok).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", rec.Code)
+	}
+	if rec.Body.String() != `{"ok":true}` {
+		t.Errorf("body = %q, want the handler's own output untouched", rec.Body.String())
+	}
+}

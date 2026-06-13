@@ -49,6 +49,27 @@ func Write(w http.ResponseWriter, r *http.Request, err error) int {
 	return status
 }
 
+// Middleware wraps an http.Handler with a panic safety net: if the handler panics, the
+// connection is not dropped — the panic is recovered, turned into a server-fault herr error
+// (the panic value preserved as the internal cause for logs), and rendered as a safe 500
+// via Write. On the happy path it is fully transparent, delegating to next unchanged.
+//
+// It is intentionally minimal: auto-logging and locale policy live in Write, so a project
+// can compose this with its own logging middleware without duplication.
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if v := recover(); v != nil {
+				// The panic value (often *runtime.Error or a string with internal paths)
+				// becomes the INTERNAL cause; the client only ever sees the safe 500 body.
+				Write(w, r, herr.New("PANIC").Kind(herr.KindInternal).
+					Internalf("recovered panic: %v", v))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
 // coerce returns err as a *herr.Error. If err already is (or wraps) one, that instance is
 // used as-is. Otherwise a fresh server-fault error is built that WRAPS the original — so the
 // cause is available to logs while the client only ever sees a safe, generic 500 body.
