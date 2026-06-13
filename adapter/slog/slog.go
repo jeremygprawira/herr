@@ -37,7 +37,23 @@ func New(l *slog.Logger) herr.Logger {
 // logger using the supplied context.
 func (a *logger) Log(ctx context.Context, rec herr.Record) {
 	level := levelFor(rec.HTTPStatus)
+
+	// code is the one attribute always present; the rest are added only when meaningful
+	// so log lines stay lean and operators are not fed empty keys.
 	attrs := []slog.Attr{slog.String("code", rec.Code)}
+	if rec.Internal != "" {
+		attrs = append(attrs, slog.String("internal", rec.Internal))
+	}
+	if rec.TraceID != "" {
+		attrs = append(attrs, slog.String("trace_id", rec.TraceID))
+	}
+	if rec.HTTPStatus != 0 {
+		attrs = append(attrs, slog.Int("status", rec.HTTPStatus))
+	}
+	if rec.Cause != nil {
+		attrs = append(attrs, slog.String("cause", rec.Cause.Error()))
+	}
+
 	a.l.LogAttrs(ctx, level, rec.Code, attrs...)
 }
 

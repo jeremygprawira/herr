@@ -10,6 +10,7 @@ package slogadapter_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 
@@ -94,5 +95,54 @@ func TestLog_ClientErrorLogsAtWarn(t *testing.T) {
 	}
 	if h.records[0].level != slog.LevelWarn {
 		t.Errorf("want level Warn, got %v", h.records[0].level)
+	}
+}
+
+// TestLog_DetailAttrsPresentWhenSet verifies that internal, trace_id, status, and cause
+// are emitted under their snake_case keys when the Record carries them — and that cause
+// is rendered via its Error() string (not the error value itself).
+func TestLog_DetailAttrsPresentWhenSet(t *testing.T) {
+	h, l := newCapture()
+	log := slogadapter.New(l)
+
+	log.Log(context.Background(), herr.Record{
+		Code:       "BOOM",
+		HTTPStatus: 500,
+		Internal:   "db connection refused",
+		TraceID:    "trace-123",
+		Cause:      errors.New("dial tcp: refused"),
+	})
+
+	a := h.records[0].attrs
+	if a["internal"] != "db connection refused" {
+		t.Errorf("want internal set, got %v", a["internal"])
+	}
+	if a["trace_id"] != "trace-123" {
+		t.Errorf("want trace_id set, got %v", a["trace_id"])
+	}
+	if a["status"] != int64(500) {
+		t.Errorf("want status=500, got %v (%T)", a["status"], a["status"])
+	}
+	if a["cause"] != "dial tcp: refused" {
+		t.Errorf("want cause=error string, got %v", a["cause"])
+	}
+}
+
+// TestLog_DetailAttrsOmittedWhenEmpty verifies the converse: an empty/zero Record carries
+// only "code"; internal, trace_id, status, and cause are absent so log lines stay lean.
+func TestLog_DetailAttrsOmittedWhenEmpty(t *testing.T) {
+	h, l := newCapture()
+	log := slogadapter.New(l)
+
+	log.Log(context.Background(), herr.Record{Code: "BARE"})
+
+	a := h.records[0].attrs
+	for _, k := range []string{"internal", "trace_id", "status", "cause"} {
+		if _, ok := a[k]; ok {
+			t.Errorf("want %q omitted, but present: %v", k, a[k])
+		}
+	}
+	if a["code"] != "BARE" {
+		t.Errorf("want code=BARE, got %v", a["code"])
 	}
 }
