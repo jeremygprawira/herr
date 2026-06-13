@@ -36,6 +36,17 @@ func New(l *slog.Logger) herr.Logger {
 // attribute list starting with the always-present code, then emit through the wrapped
 // logger using the supplied context.
 func (a *logger) Log(ctx context.Context, rec herr.Record) {
+	level := levelFor(rec.HTTPStatus)
 	attrs := []slog.Attr{slog.String("code", rec.Code)}
-	a.l.LogAttrs(ctx, slog.LevelError, rec.Code, attrs...)
+	a.l.LogAttrs(ctx, level, rec.Code, attrs...)
+}
+
+// levelFor applies herr's auto-log level policy: server faults (HTTP status 500 and
+// above) are real incidents and log at Error; everything else — client errors and the
+// unset/zero status — logs at Warn.
+func levelFor(httpStatus int) slog.Level {
+	if httpStatus >= 500 {
+		return slog.LevelError
+	}
+	return slog.LevelWarn
 }

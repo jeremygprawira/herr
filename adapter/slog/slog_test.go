@@ -80,3 +80,19 @@ func TestLog_ServerFaultLogsAtErrorWithCode(t *testing.T) {
 		t.Errorf("want code=BOOM, got %v", rec.attrs["code"])
 	}
 }
+
+// TestLog_ClientErrorLogsAtWarn checks the other side of the level policy: a non-5xx
+// Record (here a 404 client error) must be logged at slog.LevelWarn, not Error.
+func TestLog_ClientErrorLogsAtWarn(t *testing.T) {
+	h, l := newCapture()
+	log := slogadapter.New(l)
+
+	log.Log(context.Background(), herr.Record{Code: "NOPE", HTTPStatus: 404})
+
+	if len(h.records) != 1 {
+		t.Fatalf("want 1 record, got %d", len(h.records))
+	}
+	if h.records[0].level != slog.LevelWarn {
+		t.Errorf("want level Warn, got %v", h.records[0].level)
+	}
+}
