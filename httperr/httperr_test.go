@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/jeremygeraldprawira/herr"
 	"github.com/jeremygeraldprawira/herr/httperr"
@@ -41,5 +42,26 @@ func TestWrite_StatusAndBody(t *testing.T) {
 	}
 	if body["message"] != "We couldn't find that order." {
 		t.Errorf("body.message = %v, want the public message", body["message"])
+	}
+}
+
+// TestWrite_RetryAfterHeader proves a retry delay becomes the protocol-level Retry-After
+// header (whole seconds), not just a body field — so standard HTTP clients and proxies can
+// honor it. When no delay is set, the header is absent (never "Retry-After: 0").
+func TestWrite_RetryAfterHeader(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	e := herr.New("DOWN").Kind(herr.KindUnavailable).RetryAfter(30 * time.Second)
+	rec := httptest.NewRecorder()
+	httperr.Write(rec, req, e)
+	if got := rec.Header().Get("Retry-After"); got != "30" {
+		t.Errorf("Retry-After = %q, want %q", got, "30")
+	}
+
+	// No delay → header omitted.
+	rec2 := httptest.NewRecorder()
+	httperr.Write(rec2, req, herr.New("X").Kind(herr.KindNotFound))
+	if got := rec2.Header().Get("Retry-After"); got != "" {
+		t.Errorf("Retry-After = %q, want it absent", got)
 	}
 }

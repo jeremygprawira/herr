@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/jeremygeraldprawira/herr"
@@ -34,6 +35,12 @@ func Write(w http.ResponseWriter, r *http.Request, err error) int {
 	status := he.HTTPStatus()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	// A retry delay, when present, is advertised as the standard Retry-After header (whole
+	// seconds) so off-the-shelf clients and proxies honor it — not just the body field.
+	// Must be set BEFORE WriteHeader commits the response.
+	if secs := he.RetryAfterSeconds(); secs > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(secs))
+	}
 	w.WriteHeader(status)
 	// The body is the core's safe wire DTO; encoding errors are not expected for the
 	// allow-listed shape, and the status/headers are already committed, so we ignore the
