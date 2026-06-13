@@ -32,3 +32,30 @@ func TestLocalize_PresentAndAbsent(t *testing.T) {
 		t.Errorf("Localize(absent locale) = (%q, %v), want (\"\", false)", got, ok)
 	}
 }
+
+// TestLocalize_SubstitutesPlaceholders proves the template fills {name} holes
+// from params, and — critically — that substitution is injection-safe: a param
+// VALUE that itself contains "{other}" is inserted as literal text and never
+// re-scanned, so it cannot trigger a second lookup. This mirrors the core's
+// single-pass substituter exactly.
+func TestLocalize_SubstitutesPlaceholders(t *testing.T) {
+	l := mapl.New(map[string]map[string]string{
+		"en": {"greet": "Hello {name}, welcome!"},
+		"id": {"inject": "Value: {payload}"},
+	})
+
+	// Plain substitution.
+	if got, ok := l.Localize("en", "greet", map[string]any{"name": "Ada"}); !ok || got != "Hello Ada, welcome!" {
+		t.Errorf("Localize(greet) = (%q, %v), want (%q, true)", got, ok, "Hello Ada, welcome!")
+	}
+
+	// Injection safety: the value contains {other} but must NOT be expanded,
+	// even though "other" is also a provided param.
+	got, ok := l.Localize("id", "inject", map[string]any{
+		"payload": "{other}",
+		"other":   "EXPANDED",
+	})
+	if !ok || got != "Value: {other}" {
+		t.Errorf("Localize(inject) = (%q, %v), want (%q, true) — value must not be re-expanded", got, ok, "Value: {other}")
+	}
+}
