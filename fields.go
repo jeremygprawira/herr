@@ -1,6 +1,9 @@
 package herr
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 // Bounds (H5): an error must not grow without limit, or a buggy loop / a malicious caller
 // could blow up memory, response size, and log-line size. Past these caps, further
@@ -9,7 +12,30 @@ import "fmt"
 const (
 	maxFields = 64
 	maxMeta   = 64
+	// maxValueLen bounds the length (in bytes) of any single string value — the internal
+	// message and individual field/metadata string values. A few KiB is far more than any
+	// legitimate human-readable value needs, while still stopping a megabyte blob from
+	// bloating a log line or a response.
+	maxValueLen = 8 << 10 // 8 KiB
 )
+
+// truncMarker is appended to any string value cut down to the cap, so a reader sees that
+// content was dropped rather than silently losing it.
+const truncMarker = "…(truncated)"
+
+// capStr bounds a single string value to maxValueLen bytes, appending the truncation
+// marker when it has to cut. It backs the cut up to a UTF-8 rune boundary so truncation
+// never produces an invalid (half-rune) string. Short values pass through untouched.
+func capStr(s string) string {
+	if len(s) <= maxValueLen {
+		return s
+	}
+	cut := maxValueLen
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + truncMarker
+}
 
 // Field is a single key/value of internal structured context, destined for logs only.
 // It is intentionally tiny and visibility-free: INTERNAL fields use this type, while
@@ -36,8 +62,18 @@ func (e *Error) With(key string, val any) *Error {
 		}
 		return e
 	}
-	e.fields = append(e.fields, Field{Key: key, Val: val})
+	e.fields = append(e.fields, Field{Key: key, Val: capValue(val)})
 	return e
+}
+
+// capValue bounds a field/metadata VALUE: string values are length-capped (capStr); any
+// other type (ints, structs, ...) is left untouched, since the length cap is about runaway
+// text, not arbitrary data the caller chose to attach.
+func capValue(val any) any {
+	if s, ok := val.(string); ok {
+		return capStr(s)
+	}
+	return val
 }
 
 // WithPublic attaches PUBLIC metadata that WILL cross the wire (merged into the response
@@ -55,7 +91,7 @@ func (e *Error) WithPublic(key string, val any) *Error {
 		e.pubMeta["_metadata_truncated"] = true
 		return e
 	}
-	e.pubMeta[key] = val
+	e.pubMeta[key] = capValue(val)
 	return e
 }
 
@@ -69,7 +105,7 @@ func (e *Error) Internal(msg string) *Error {
 	if e == nil {
 		return nil
 	}
-	e.internal = msg
+	e.internal = capStr(msg)
 	return e
 }
 
@@ -79,7 +115,7 @@ func (e *Error) Internalf(format string, args ...any) *Error {
 	if e == nil {
 		return nil
 	}
-	e.internal = fmt.Sprintf(format, args...)
+	e.internal = capStr(fmt.Sprintf(format, args...))
 	return e
 }
 
