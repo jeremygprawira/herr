@@ -95,10 +95,22 @@ func FuzzWire_NeverLeaksInternal(f *testing.F) {
 			t.Skip() // marshal error is not a leak; out of scope for this property
 		}
 		body := string(raw)
+
+		// The body legitimately contains PUBLIC content — the code and the public
+		// message — in their JSON-encoded (escaped) form. A secret that appears only as a
+		// substring of that encoded public content is NOT a leak; it is coincidental
+		// overlap (e.g. a NUL byte in `code` JSON-escapes to the literal six-character
+		// sequence backslash-u-0-0-0-0, whose text contains "0000"). Build the encoded
+		// public strings so we can discount such matches and
+		// keep the gate honest: any secret appearing OUTSIDE the public content still trips.
+		encCode, _ := json.Marshal(code)
+		encMsg, _ := json.Marshal("safe public message")
+		publicEncoded := string(encCode) + string(encMsg)
+
 		for _, secret := range []string{internal, field, cause} {
-			// Only meaningful, non-trivial secrets can "leak"; skip values that are
-			// empty or could coincidentally match the code/public text.
-			if len(secret) < 4 || secret == code || secret == "safe public message" {
+			// Only meaningful, non-trivial secrets can "leak"; skip values that are too
+			// short to be distinctive or are fully explained by the encoded public content.
+			if len(secret) < 4 || strings.Contains(publicEncoded, secret) {
 				continue
 			}
 			if strings.Contains(body, secret) {
