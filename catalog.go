@@ -20,6 +20,10 @@ type Class struct {
 	Kind Kind
 	// HTTP optionally overrides the Kind-derived HTTP status (0 = derive from Kind).
 	HTTP int
+	// MessageKey optionally overrides the derived i18n key (`errors.<code>.message`) used
+	// to translate the public message. Empty = derive from Code. Lets several classes
+	// share one translation or map onto a key outside the naming convention.
+	MessageKey string
 	// Public is the default user-facing surface stamped onto every New() instance.
 	Public Public
 }
@@ -49,6 +53,7 @@ func (c *Class) New() *Error {
 		code:       c.Code,
 		kind:       c.Kind,
 		httpStatus: c.HTTP,
+		msgKey:     c.MessageKey,
 		public:     c.Public,
 	}
 }

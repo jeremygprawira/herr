@@ -44,6 +44,28 @@ func messageKey(code string) string {
 	return "errors." + strings.ToLower(code) + ".message"
 }
 
+// MessageKey sets an EXPLICIT i18n key for this error's public message, overriding the
+// key derived from Code. Use it to share one translation across several codes, or to map a
+// code onto a key that doesn't follow the `errors.<code>.message` convention. Returns the
+// receiver for chaining.
+func (e *Error) MessageKey(key string) *Error {
+	if e == nil {
+		return nil
+	}
+	e.msgKey = key
+	return e
+}
+
+// effectiveMessageKey is the i18n key the resolver actually asks the Localizer for: the
+// explicit override when set, otherwise the key derived from Code. One place owns the
+// "explicit beats derived" rule so every lookup path stays consistent.
+func (e *Error) effectiveMessageKey() string {
+	if e.msgKey != "" {
+		return e.msgKey
+	}
+	return messageKey(e.code)
+}
+
 // resolveMessage applies the public-message resolution chain for a locale:
 //
 //  1. an INLINE call-site message wins (you wrote the exact words; you mean them);
@@ -58,9 +80,9 @@ func (e *Error) resolveMessage(locale string) string {
 	if e.msgInline && e.public.Message != "" {
 		return substitute(e.public.Message, e.params)
 	}
-	// 2. translation by derived key
+	// 2. translation by effective key (explicit override, else derived from Code)
 	if l := currentLocalizer(); l != nil {
-		if s, ok := l.Localize(locale, messageKey(e.code), e.params); ok {
+		if s, ok := l.Localize(locale, e.effectiveMessageKey(), e.params); ok {
 			return s
 		}
 	}

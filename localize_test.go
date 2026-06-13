@@ -55,6 +55,51 @@ func TestLocalizer_TranslatesByDerivedKey(t *testing.T) {
 	}
 }
 
+// TestMessageKey_OverridesDerivedKey proves the explicit message-key override: by default
+// herr asks the Localizer for the DERIVED key (`errors.<code>.message`), but a developer
+// can point an error at a different i18n key with .MessageKey(k). The Localizer is then
+// asked for that exact key — letting several codes share one translation, or a code map to
+// a key that doesn't follow the naming convention.
+func TestMessageKey_OverridesDerivedKey(t *testing.T) {
+	herr.SetLocalizer(mapLocalizer{
+		// Only the CUSTOM key has a translation; the derived key does not.
+		"id|errors.shared.not_available": "Tidak tersedia.",
+	})
+	t.Cleanup(func() { herr.SetLocalizer(nil) })
+
+	// No inline message — so the resolver reaches the Localizer step and uses the key.
+	e := herr.New("WIDGET_GONE").MessageKey("errors.shared.not_available")
+
+	if got := bodyMessage(t, e, "id"); got != "Tidak tersedia." {
+		t.Errorf("id message = %q, want the translation under the explicit key", got)
+	}
+}
+
+// TestClassMessageKey_OverridesDerivedKey proves the explicit key works from the CATALOG
+// too: a Class can declare MessageKey once, and every error stamped via .New() asks the
+// Localizer for that key instead of the derived one. The catalog message stays the literal
+// fallback when no translation exists.
+func TestClassMessageKey_OverridesDerivedKey(t *testing.T) {
+	herr.SetLocalizer(mapLocalizer{
+		"id|errors.shared.not_available": "Tidak tersedia.",
+	})
+	t.Cleanup(func() { herr.SetLocalizer(nil) })
+
+	var ErrWidgetGone = herr.Define(herr.Class{
+		Code:       "WIDGET_GONE",
+		Kind:       herr.KindNotFound,
+		MessageKey: "errors.shared.not_available",
+		Public:     herr.Public{Message: "Widget not available."},
+	})
+
+	if got := bodyMessage(t, ErrWidgetGone.New(), "id"); got != "Tidak tersedia." {
+		t.Errorf("id message = %q, want the translation under the class's explicit key", got)
+	}
+	if got := bodyMessage(t, ErrWidgetGone.New(), "en"); got != "Widget not available." {
+		t.Errorf("en message = %q, want the literal catalog fallback", got)
+	}
+}
+
 // TestLocalizer_InlineMessageWins proves an inline call-site message overrides any
 // translation — when you write the exact words at the call site, you mean them.
 func TestLocalizer_InlineMessageWins(t *testing.T) {

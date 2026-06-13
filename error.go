@@ -65,6 +65,12 @@ type Error struct {
 	// message act as a translation fallback. See resolveMessage.
 	msgInline bool
 
+	// msgKey, when non-empty, is an EXPLICIT i18n key override. Normally the Localizer is
+	// asked for the DERIVED key (`errors.<code>.message`); setting this points the lookup
+	// at a specific key instead — so several codes can share one translation, or a code
+	// can map to a key outside the naming convention. Empty means "derive from Code".
+	msgKey string
+
 	// pubMeta holds dynamic public metadata added at the call site via WithPublic. It is
 	// merged with public.Metadata at render time. Kept separate (and lazily allocated)
 	// so the static catalog Metadata is never mutated by per-request additions.
