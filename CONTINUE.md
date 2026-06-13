@@ -86,17 +86,19 @@ per-field messages), NOT a developer/log channel. We do NOT depend on go-multier
 interface structurally instead. herr is "multi-error-agnostic" like it is logger/i18n-agnostic.
 
 ### Phase 2 — i18n
-- [ ] `SetSupportedLocales` + `x/text/language` matching (H4)
-- [ ] `localizer/mapl` (map-based)
+- [ ] `SetSupportedLocales` + `x/text/language` matching (H4) — DEFERRED (most core-entangled;
+  needs a careful dep-boundary design. Basic Accept-Language parsing already in httperr.)
+- [x] `localizer/mapl` (map-based) — built via TDD by subagent; defensive deep-copy + injection-safe substitute
 - [ ] embedded `en` + `id` floor-message bundles
 
 ### Phase 3 — transports
-- [ ] `httperr`: Middleware + Write + Retry-After + Accept-Language
-- [ ] `grpcerr`: interceptors + status + RetryInfo
-- [ ] `wserr`: close-code mapping + reason
+- [x] `httperr`: Middleware + Write + Retry-After + Accept-Language (stdlib-only root sub-package, 6 TDD cycles)
+- [ ] `grpcerr`: interceptors + status + RetryInfo  (submodule — needs google.golang.org/grpc)
+- [ ] `wserr`: close-code mapping + reason  (stdlib-only — can be root sub-package)
 
 ### Phase 4 — logger adapters
-- [ ] `adapter/slog`, `adapter/zap`, `adapter/logrus`, `adapter/zerolog`
+- [x] `adapter/slog` (stdlib `log/slog`, root sub-package, 6 TDD cycles by subagent)
+- [ ] `adapter/zap`, `adapter/logrus`, `adapter/zerolog`  (each a submodule — third-party dep + replace)
 
 ### Phase 5 — quality layer
 - [ ] `StrictMode()` validations
@@ -121,6 +123,11 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
   `WithStack` (conditional, server-fault only), H5 string caps, `NewTraceID`,
   `KindUnprocessable`, native field errors (`FieldError` + `errors[]`), multi-error interop.
 - New source files: `stack.go` `trace.go` `field_errors.go` `multierror.go`.
+- **Leaf packages delivered (all green under -race + vet):** `httperr/` (HTTP transport),
+  `adapter/slog/` (slog logger adapter), `localizer/mapl/` (map localizer). The two adapters
+  were built by parallel subagents in isolated worktrees under strict TDD, then reviewed +
+  merged. Transport accessors added to core: `RetryAfterSeconds()`, `Retryable()`.
+- **4 modules, all green:** `herr`, `herr/httperr`, `herr/adapter/slog`, `herr/localizer/mapl`.
 - **Both security gates proven & continuously re-verified:** C1 (`TestCatalog_*`, race-clean)
   and C2 (`TestSafeSplit_InternalNeverLeaks` + `FuzzWire_NeverLeaksInternal`, ~8M execs/run).
 - Source files (all commented): `error.go` `kind.go` `public.go` `wire.go` `fields.go`
