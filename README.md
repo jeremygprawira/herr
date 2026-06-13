@@ -219,4 +219,4 @@ transport dependency into your build.
 
 ## License
 
-See repository.
+[MIT](LICENSE) © Jeremy
