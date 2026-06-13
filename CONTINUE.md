@@ -93,12 +93,28 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
 
 ### Phase 3 — transports
 - [x] `httperr`: Middleware + Write + Retry-After + Accept-Language (stdlib-only root sub-package, 6 TDD cycles)
-- [ ] `grpcerr`: interceptors + status + RetryInfo  (submodule — needs google.golang.org/grpc)
-- [ ] `wserr`: close-code mapping + reason  (stdlib-only — can be root sub-package)
+- [ ] `grpcerr`: interceptors + status + RetryInfo  (submodule — BLOCKED: agent hit session limit before any commit; rerun after reset)
+- [x] `wserr`: close-code mapping + reason + ControlPayload (stdlib-only root sub-package, 2 TDD cycles + guards)
 
 ### Phase 4 — logger adapters
 - [x] `adapter/slog` (stdlib `log/slog`, root sub-package, 6 TDD cycles by subagent)
-- [ ] `adapter/zap`, `adapter/logrus`, `adapter/zerolog`  (each a submodule — third-party dep + replace)
+- [ ] `adapter/zap`, `adapter/logrus`, `adapter/zerolog`  (each a submodule — BLOCKED: agents hit session limit before any commit; rerun after reset)
+
+#### Third-party submodule recipe (for the BLOCKED leaves above)
+Each third-party adapter/transport is its OWN Go module so the root stays dep-free. Pattern
+(e.g. `adapter/zap/go.mod`):
+```
+module github.com/jeremygeraldprawira/herr/adapter/zap
+go 1.26
+require ( github.com/jeremygeraldprawira/herr v0.0.0; go.uber.org/zap v1.27.0 )
+replace github.com/jeremygeraldprawira/herr => ../../
+```
+Then `go mod tidy`. Logger adapters are STRUCTURAL TWINS of `adapter/slog/slog.go` (same
+snake_case keys `code/internal/trace_id/status/cause/stack` + fields; level policy: HTTP
+status ≥500 → Error else Warn; `New(nil)`-safe). `grpcerr` maps `GRPCCode()`→`codes.Code`,
+uses the safe public message (from `Body(locale)`), attaches `errdetails.RetryInfo` when
+`Retryable()==RetryYes && RetryAfterSeconds()>0`; never let internal detail reach the status.
+A `go.work` at repo root tying the submodules together is the natural way to test them all.
 
 ### Phase 5 — quality layer
 - [ ] `StrictMode()` validations
@@ -124,10 +140,16 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
   `KindUnprocessable`, native field errors (`FieldError` + `errors[]`), multi-error interop.
 - New source files: `stack.go` `trace.go` `field_errors.go` `multierror.go`.
 - **Leaf packages delivered (all green under -race + vet):** `httperr/` (HTTP transport),
-  `adapter/slog/` (slog logger adapter), `localizer/mapl/` (map localizer). The two adapters
-  were built by parallel subagents in isolated worktrees under strict TDD, then reviewed +
-  merged. Transport accessors added to core: `RetryAfterSeconds()`, `Retryable()`.
-- **4 modules, all green:** `herr`, `herr/httperr`, `herr/adapter/slog`, `herr/localizer/mapl`.
+  `wserr/` (WebSocket transport), `adapter/slog/` (slog logger adapter), `localizer/mapl/`
+  (map localizer). slog + mapl were built by parallel subagents in isolated worktrees under
+  strict TDD, then reviewed + merged. Transport accessors added to core:
+  `RetryAfterSeconds()`, `Retryable()`.
+- **5 packages, all green:** `herr`, `herr/httperr`, `herr/wserr`, `herr/adapter/slog`,
+  `herr/localizer/mapl`.
+- **Blocked (session limit, resets 10:10pm Asia/Jakarta 2026-06-13):** parallel agents for
+  `adapter/{zap,logrus,zerolog}` + `grpcerr` were launched but hit the limit before
+  committing anything; their worktrees/branches were cleaned. Rerun after reset using the
+  submodule recipe below. **Resume next session at:** those four leaves, then Phase 5/6.
 - **Both security gates proven & continuously re-verified:** C1 (`TestCatalog_*`, race-clean)
   and C2 (`TestSafeSplit_InternalNeverLeaks` + `FuzzWire_NeverLeaksInternal`, ~8M execs/run).
 - Source files (all commented): `error.go` `kind.go` `public.go` `wire.go` `fields.go`
