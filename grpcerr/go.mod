@@ -3,7 +3,7 @@ module github.com/jeremygprawira/herr/grpcerr
 go 1.26.1
 
 require (
-	github.com/jeremygprawira/herr v0.0.0
+	github.com/jeremygprawira/herr v0.1.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
@@ -14,5 +14,3 @@ require (
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 )
-
-replace github.com/jeremygprawira/herr => ../
