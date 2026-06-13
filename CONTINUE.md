@@ -59,7 +59,7 @@ MORE DONE (cycles 8–15):
 
 REMAINING in Phase 1 (start here, keep TDD one-test-at-a-time):
 - [x] `SetDefaults(map[Kind]string)` to override the built-in floor (atomic, like SetLocalizer)
-- [ ] explicit message key override (`.MessageKey(k)` / `Class.MessageKey`) — currently only the DERIVED key is used
+- [x] explicit message key override (`.MessageKey(k)` / `Class.MessageKey`) — resolver asks the Localizer for `effectiveMessageKey()` (explicit, else derived)
 - [ ] `.WithStack()` + **conditional** stack capture (server/Internal kinds only — H5); expose in `Record.Stack`
 - [ ] H5 string-length caps (truncate long internal msg / field / metadata string values)
 - [ ] random default traceID generator helper (riders) — used by transports when unset
@@ -123,7 +123,7 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
 - Logger/i18n agnostic; core has zero third-party deps.
 
 ## Current state (read this to resume)
-- **46 tests + 1 fuzz, all green.** `go test ./...`, `go test -race ./...`, `go vet ./...` all pass.
+- **48 tests + 1 fuzz, all green.** `go test ./...`, `go test -race ./...`, `go vet ./...` all pass.
 - **Both security gates proven & continuously re-verified:** C1 (`TestCatalog_*`, race-clean)
   and C2 (`TestSafeSplit_InternalNeverLeaks` + `FuzzWire_NeverLeaksInternal`, ~8M execs/run).
 - Source files (all commented): `error.go` `kind.go` `public.go` `wire.go` `fields.go`
@@ -132,12 +132,13 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
 - Public API so far: `New/Define/Class/Public/Msg`, builders `Kind/Status/GRPC/WS/Title/
   Message/Public/Meta/WithPublic/With/Internal/Internalf/Param/Params/Retry/RetryAfter/
   Trace/Wrap`, accessors `Code/HTTPStatus/GRPCCode/WSClose/TraceID/Error/Unwrap/Is/Body`,
-  funcs `LogRecord/LogFields/Attrs/SetLocalizer/SetDefaults`, ifaces `Localizer/Logger`.
-- **Next concrete step:** next unchecked box in Phase 1 (explicit message key override:
-  `.MessageKey(k)` / `Class.MessageKey` — currently only the DERIVED key is used), then the
-  rest of Phase 1, then Phase 2 (i18n adapters incl. `id` bundle + `SetSupportedLocales` H4),
-  then Phase 3 transports (httperr first — highest external value). Write ONE failing test,
-  make it pass, commit.
+  builder `MessageKey`, funcs `LogRecord/LogFields/Attrs/SetLocalizer/SetDefaults`,
+  ifaces `Localizer/Logger`. `Class` now has a `MessageKey` field too.
+- **Next concrete step:** next unchecked box in Phase 1 (`.WithStack()` + conditional stack
+  capture — server/Internal kinds only per H5 — exposed in `Record.Stack`), then the rest of
+  Phase 1, then Phase 2 (i18n adapters incl. `id` bundle + `SetSupportedLocales` H4), then
+  Phase 3 transports (httperr first — highest external value). Write ONE failing test, make
+  it pass, commit.
 
 ## Session notes
 - 2026-06-11: module init + handoff doc created.
@@ -150,3 +151,8 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
   `code` escapes to ` `, whose text contains a secret like "0000". Fixed the fuzz to
   discount matches explained by encoded public content (no real leak; C2 invariant unchanged)
   and kept the seed as a regression corpus entry. 46 tests + fuzz green; -race & vet clean.
+- 2026-06-13: explicit message-key override added via TDD (2 cycles: `.MessageKey(k)` builder,
+  then `Class.MessageKey` field copied by `New()`). `resolveMessage` now asks the Localizer
+  for `effectiveMessageKey()` (explicit beats derived, one place owns the rule). Inline
+  message still wins; catalog message is still the literal fallback. 48 tests + fuzz green;
+  -race & vet clean; C2 leak fuzz re-verified after touching `catalog.go`.
