@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestWithStack_CapturesForServerFault proves WithStack records a stack trace for a

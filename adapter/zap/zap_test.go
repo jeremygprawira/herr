@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
-	"github.com/jeremygeraldprawira/herr"
-	zapadapter "github.com/jeremygeraldprawira/herr/adapter/zap"
+	"github.com/jeremygprawira/herr"
+	zapadapter "github.com/jeremygprawira/herr/adapter/zap"
 )
 
 // newObserved builds a herr.Logger backed by an in-memory zap core, returning both so a

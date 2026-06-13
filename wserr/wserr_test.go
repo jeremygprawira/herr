@@ -6,8 +6,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/jeremygeraldprawira/herr"
-	"github.com/jeremygeraldprawira/herr/wserr"
+	"github.com/jeremygprawira/herr"
+	"github.com/jeremygprawira/herr/wserr"
 )
 
 // TestClose_CodeAndReason proves the core mapping: a herr error becomes a WebSocket close

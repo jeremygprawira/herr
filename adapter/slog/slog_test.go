@@ -14,8 +14,8 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
-	slogadapter "github.com/jeremygeraldprawira/herr/adapter/slog"
+	"github.com/jeremygprawira/herr"
+	slogadapter "github.com/jeremygprawira/herr/adapter/slog"
 )
 
 // captureHandler is a minimal slog.Handler test double that records every record it is

@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // Write renders err as an HTTP response and returns the status code it wrote.

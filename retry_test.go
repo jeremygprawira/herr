@@ -3,7 +3,7 @@ package herr_test
 import (
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestRetry_TriState proves the central safety property of retryability: an UNSET retry

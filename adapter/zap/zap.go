@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // logger is the unexported adapter type. It holds the wrapped *zap.Logger and exists only to

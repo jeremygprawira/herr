@@ -3,7 +3,7 @@ package herr_test
 import (
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestKind_DrivesDefaultHTTPStatus proves the "convention with override" rule for the

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestBounds_FieldsCapped proves internal fields can't grow without limit: past the cap,

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jeremygeraldprawira/herr"
-	"github.com/jeremygeraldprawira/herr/httperr"
+	"github.com/jeremygprawira/herr"
+	"github.com/jeremygprawira/herr/httperr"
 )
 
 // decodeBody runs Write against a recorder and returns the recorder plus the decoded JSON

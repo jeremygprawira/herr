@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
-	"github.com/jeremygeraldprawira/herr/localizer/mapl"
+	"github.com/jeremygprawira/herr"
+	"github.com/jeremygprawira/herr/localizer/mapl"
 )
 
 // TestLocalize_PresentAndAbsent proves the most basic contract of the Localizer:

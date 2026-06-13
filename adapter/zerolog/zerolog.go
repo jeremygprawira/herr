@@ -17,7 +17,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // logger is the unexported adapter type. It holds the zerolog.Logger (a value type, by

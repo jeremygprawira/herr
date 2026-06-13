@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestLogRecord_CarriesInternalDetail proves the "developer-friendly" half: LogRecord

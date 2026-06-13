@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestNew_CarriesCode is the tracer bullet: it proves the most basic promise of the

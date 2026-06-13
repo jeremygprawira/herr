@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestRetryAfter proves that a retry delay is rendered as whole seconds under `retryAfter`

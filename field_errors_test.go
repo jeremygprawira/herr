@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // fieldErrorEntries renders the error for a locale and returns its `errors[]` as decoded

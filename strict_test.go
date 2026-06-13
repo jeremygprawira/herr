@@ -3,7 +3,7 @@ package herr_test
 import (
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestStrictMode_MissingParamVisible proves the H3 dev-aid: by default a missing {name}

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestCatalog_NewCarriesDefaults proves the "catalog" authoring style: define an error

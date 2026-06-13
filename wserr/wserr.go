@@ -15,7 +15,7 @@ import (
 	"errors"
 	"unicode/utf8"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // maxReasonBytes is the RFC 6455 limit on a close-frame reason. A control frame payload is

@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/jeremygeraldprawira/herr"
-	zerologadapter "github.com/jeremygeraldprawira/herr/adapter/zerolog"
+	"github.com/jeremygprawira/herr"
+	zerologadapter "github.com/jeremygprawira/herr/adapter/zerolog"
 )
 
 // newCaptured builds a herr.Logger backed by a zerolog logger writing JSON to a buffer, so a

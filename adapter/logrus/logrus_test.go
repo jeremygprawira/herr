@@ -8,8 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/jeremygeraldprawira/herr"
-	logrusadapter "github.com/jeremygeraldprawira/herr/adapter/logrus"
+	"github.com/jeremygprawira/herr"
+	logrusadapter "github.com/jeremygprawira/herr/adapter/logrus"
 )
 
 // newCaptured builds a herr.Logger backed by a logrus logger that writes JSON to a buffer,

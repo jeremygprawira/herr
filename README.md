@@ -41,14 +41,14 @@ every call site to keep them apart. herr makes the split a type-system property:
 ## Install
 
 ```bash
-go get github.com/jeremygeraldprawira/herr
+go get github.com/jeremygprawira/herr
 ```
 
 The core is dependency-free. Optional integrations are separate modules, e.g.:
 
 ```bash
-go get github.com/jeremygeraldprawira/herr/adapter/zap
-go get github.com/jeremygeraldprawira/herr/grpcerr
+go get github.com/jeremygprawira/herr/adapter/zap
+go get github.com/jeremygprawira/herr/grpcerr
 ```
 
 ## Core concepts
@@ -166,7 +166,7 @@ rec := herr.LogRecord(err) // {Code, Kind, HTTPStatus, Internal, Fields, Cause, 
 Or use a ~10-line adapter so a transport can auto-log:
 
 ```go
-import slogadapter "github.com/jeremygeraldprawira/herr/adapter/slog"
+import slogadapter "github.com/jeremygprawira/herr/adapter/slog"
 
 logger := slogadapter.New(slog.Default()) // also: adapter/zap, adapter/logrus, adapter/zerolog
 ```
@@ -180,7 +180,7 @@ Public messages localize; internal text stays one language. herr asks an install
 to the literal message, then a built-in per-Kind floor (overridable with `SetDefaults`).
 
 ```go
-import "github.com/jeremygeraldprawira/herr/localizer/mapl"
+import "github.com/jeremygprawira/herr/localizer/mapl"
 
 herr.SetLocalizer(mapl.New(map[string]map[string]string{
     "id": {"errors.not_found.message": "Tidak ditemukan."},

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestMultiError_JoinPromotesFieldErrors proves herr is multi-error-agnostic: when a parent

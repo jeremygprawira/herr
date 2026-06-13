@@ -6,7 +6,7 @@ loss. If you are picking this up cold: read this file, then the spec, then run t
 tests, then continue from the first unchecked box.
 
 - **Spec:** `docs/specs/2026-06-11-herr-design.md` (the design is final — no open questions)
-- **Module:** `github.com/jeremygeraldprawira/herr`
+- **Module:** `github.com/jeremygprawira/herr`
 - **Go:** 1.26.1
 - **Method:** strict TDD (one test → one impl → repeat). Every `.go` file is
   thoroughly commented to explain the *flow* of each func/process.
@@ -103,7 +103,7 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
 #### Module layout (multi-module repo, root stays dep-free)
 - ROOT module `herr` contains: core + `httperr/` + `wserr/` + `adapter/slog/` + `localizer/mapl/`
   (all stdlib-only, no separate go.mod).
-- SUBMODULES (own go.mod + `replace github.com/jeremygeraldprawira/herr => ../..` or `../`):
+- SUBMODULES (own go.mod + `replace github.com/jeremygprawira/herr => ../..` or `../`):
   `adapter/zap`, `adapter/logrus`, `adapter/zerolog` (two levels → `../../`), `grpcerr` (one level → `../`).
 - `go.work` at the root ties them together for local testing. Sweep:
   `for m in . adapter/zap adapter/logrus adapter/zerolog grpcerr; do (cd $m && go test ./...); done`

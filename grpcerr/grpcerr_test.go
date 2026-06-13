@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/jeremygeraldprawira/herr"
-	"github.com/jeremygeraldprawira/herr/grpcerr"
+	"github.com/jeremygprawira/herr"
+	"github.com/jeremygprawira/herr/grpcerr"
 )
 
 // TestStatus_CodeAndMessage proves the core mapping: a herr error becomes a *status.Status

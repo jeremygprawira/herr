@@ -3,7 +3,7 @@ package herr_test
 import (
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestParam_Substitution proves {name} placeholders in Title/Message are filled from

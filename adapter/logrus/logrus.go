@@ -18,7 +18,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // logger is the unexported adapter type. It holds the wrapped *logrus.Logger and exists only

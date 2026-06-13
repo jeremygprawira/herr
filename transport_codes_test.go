@@ -3,7 +3,7 @@ package herr_test
 import (
 	"testing"
 
-	"github.com/jeremygeraldprawira/herr"
+	"github.com/jeremygprawira/herr"
 )
 
 // TestGRPCMapping proves Kind derives a sensible gRPC status code, with an explicit

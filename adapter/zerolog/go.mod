@@ -1,9 +1,9 @@
-module github.com/jeremygeraldprawira/herr/adapter/zerolog
+module github.com/jeremygprawira/herr/adapter/zerolog
 
 go 1.26.1
 
 require (
-	github.com/jeremygeraldprawira/herr v0.0.0
+	github.com/jeremygprawira/herr v0.0.0
 	github.com/rs/zerolog v1.33.0
 )
 
@@ -13,4 +13,4 @@ require (
 	golang.org/x/sys v0.12.0 // indirect
 )
 
-replace github.com/jeremygeraldprawira/herr => ../../
+replace github.com/jeremygprawira/herr => ../../
