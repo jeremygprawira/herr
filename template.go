@@ -65,8 +65,12 @@ func substitute(tmpl string, params map[string]any) string {
 		name := tmpl[i+1 : i+end] // text between the braces
 		if v, ok := params[name]; ok {
 			b.WriteString(fmt.Sprint(v)) // value inserted as text, never re-scanned
+		} else if strictModeOn() {
+			// StrictMode (H3): leave the unfilled placeholder VISIBLE so a developer sees
+			// the missing Param immediately — production collapses it to empty instead.
+			b.WriteString(tmpl[i : i+end+1])
 		}
-		// (missing param → write nothing → placeholder collapses to empty)
+		// (missing param in production → write nothing → placeholder collapses to empty)
 		i += end + 1 // advance past the closing '}'
 	}
 	return b.String()
