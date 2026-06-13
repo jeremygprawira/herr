@@ -53,3 +53,22 @@ func TestKind_DrivesDefaultHTTPStatus(t *testing.T) {
 		})
 	}
 }
+
+// TestKindUnprocessable_Mapping proves the new validation Kind maps consistently across
+// transports: HTTP 422 (Unprocessable Entity — syntactically fine but semantically
+// rejected), gRPC InvalidArgument, and a "do not retry" stance (retrying the same bad
+// input won't help). This is the Kind validation/field errors are built on.
+func TestKindUnprocessable_Mapping(t *testing.T) {
+	e := herr.New("VALIDATION_FAILED").Kind(herr.KindUnprocessable)
+
+	if got := e.HTTPStatus(); got != 422 {
+		t.Errorf("HTTPStatus() = %d, want 422", got)
+	}
+	if got := e.GRPCCode(); got != herr.GRPCInvalidArgument {
+		t.Errorf("GRPCCode() = %d, want GRPCInvalidArgument", got)
+	}
+	// retry No → wire renders retryable:false.
+	if got := decodeWire(t, e)["retryable"]; got != false {
+		t.Errorf("retryable = %v, want false", got)
+	}
+}

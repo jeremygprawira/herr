@@ -22,14 +22,15 @@ const (
 // (notably KindInternal) are intentionally "unknown" — a 500 might be transient or
 // permanent, so herr makes no claim rather than guessing.
 var kindRetry = map[Kind]Retry{
-	KindUnavailable: RetryYes, // dependency temporarily down → try again
-	KindTimeout:     RetryYes, // deadline exceeded → try again
-	KindRateLimited: RetryYes, // slow down, then retry (see Retry-After)
-	KindInvalid:     RetryNo,  // request is wrong; retrying won't help
-	KindUnauthorized: RetryNo,
-	KindForbidden:    RetryNo,
-	KindNotFound:     RetryNo,
-	KindConflict:     RetryNo,
+	KindUnavailable:   RetryYes, // dependency temporarily down → try again
+	KindTimeout:       RetryYes, // deadline exceeded → try again
+	KindRateLimited:   RetryYes, // slow down, then retry (see Retry-After)
+	KindInvalid:       RetryNo,  // request is wrong; retrying won't help
+	KindUnauthorized:  RetryNo,
+	KindForbidden:     RetryNo,
+	KindNotFound:      RetryNo,
+	KindConflict:      RetryNo,
+	KindUnprocessable: RetryNo, // bad input; retrying the same data won't help
 }
 
 // Retry sets an explicit retryability claim and returns the receiver for chaining. An

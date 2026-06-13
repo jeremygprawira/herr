@@ -33,29 +33,31 @@ const (
 // kindGRPC maps each Kind to its default gRPC code (the single source of truth for the
 // gRPC side of the convention).
 var kindGRPC = map[Kind]GRPCCode{
-	KindInternal:     GRPCInternal,
-	KindInvalid:      GRPCInvalidArgument,
-	KindUnauthorized: GRPCUnauthenticated,
-	KindForbidden:    GRPCPermissionDenied,
-	KindNotFound:     GRPCNotFound,
-	KindConflict:     GRPCAborted,
-	KindRateLimited:  GRPCResourceExhausted,
-	KindTimeout:      GRPCDeadlineExceeded,
-	KindUnavailable:  GRPCUnavailable,
+	KindInternal:      GRPCInternal,
+	KindInvalid:       GRPCInvalidArgument,
+	KindUnauthorized:  GRPCUnauthenticated,
+	KindForbidden:     GRPCPermissionDenied,
+	KindNotFound:      GRPCNotFound,
+	KindConflict:      GRPCAborted,
+	KindRateLimited:   GRPCResourceExhausted,
+	KindTimeout:       GRPCDeadlineExceeded,
+	KindUnavailable:   GRPCUnavailable,
+	KindUnprocessable: GRPCInvalidArgument,
 }
 
 // kindWS maps each Kind to a WebSocket close code (RFC 6455). 1008 = Policy Violation,
 // 1011 = Internal Error, 1013 = Try Again Later.
 var kindWS = map[Kind]int{
-	KindInternal:     1011,
-	KindInvalid:      1008,
-	KindUnauthorized: 1008,
-	KindForbidden:    1008,
-	KindNotFound:     1008,
-	KindConflict:     1008,
-	KindRateLimited:  1013,
-	KindTimeout:      1011,
-	KindUnavailable:  1013,
+	KindInternal:      1011,
+	KindInvalid:       1008,
+	KindUnauthorized:  1008,
+	KindForbidden:     1008,
+	KindNotFound:      1008,
+	KindConflict:      1008,
+	KindRateLimited:   1013,
+	KindTimeout:       1011,
+	KindUnavailable:   1013,
+	KindUnprocessable: 1008,
 }
 
 // GRPC sets an EXPLICIT gRPC code override and returns the receiver for chaining.

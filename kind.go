@@ -30,6 +30,9 @@ const (
 	KindTimeout
 	// KindUnavailable means a dependency / the service is temporarily down. → 503.
 	KindUnavailable
+	// KindUnprocessable means the request was well-formed but failed semantic validation
+	// (e.g. field-level errors). → 422. This is the Kind validation/field errors use.
+	KindUnprocessable
 )
 
 // kindHTTP maps each Kind to its default HTTP status code. This is the single source of
@@ -38,15 +41,16 @@ const (
 // A map (rather than a slice indexed by Kind) is used for readability; the set is tiny
 // and this is not on a hot path that would care about the lookup cost.
 var kindHTTP = map[Kind]int{
-	KindInternal:     500,
-	KindInvalid:      400,
-	KindUnauthorized: 401,
-	KindForbidden:    403,
-	KindNotFound:     404,
-	KindConflict:     409,
-	KindRateLimited:  429,
-	KindTimeout:      504,
-	KindUnavailable:  503,
+	KindInternal:      500,
+	KindInvalid:       400,
+	KindUnauthorized:  401,
+	KindForbidden:     403,
+	KindNotFound:      404,
+	KindConflict:      409,
+	KindRateLimited:   429,
+	KindTimeout:       504,
+	KindUnavailable:   503,
+	KindUnprocessable: 422,
 }
 
 // Kind sets the error's classification and returns the receiver for chaining.
