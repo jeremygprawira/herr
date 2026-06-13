@@ -59,3 +59,27 @@ func TestLocalize_SubstitutesPlaceholders(t *testing.T) {
 		t.Errorf("Localize(inject) = (%q, %v), want (%q, true) — value must not be re-expanded", got, ok, "Value: {other}")
 	}
 }
+
+// TestNew_CopiesInput proves New defensively snapshots its input: mutating the
+// caller's maps (or swapping inner entries) after construction must not alter
+// what the Localizer returns. This keeps lookups stable and race-free even if a
+// caller keeps and edits the table they passed in.
+func TestNew_CopiesInput(t *testing.T) {
+	inner := map[string]string{"k": "original"}
+	tables := map[string]map[string]string{"en": inner}
+
+	l := mapl.New(tables)
+
+	// Mutate the caller's maps after construction.
+	inner["k"] = "mutated"             // change an existing inner value
+	inner["added"] = "late"            // add a new inner key
+	tables["en"] = map[string]string{} // swap the whole inner map
+	delete(tables, "en")               // and drop the locale
+
+	if got, ok := l.Localize("en", "k", nil); !ok || got != "original" {
+		t.Errorf("Localize after caller mutation = (%q, %v), want (%q, true)", got, ok, "original")
+	}
+	if got, ok := l.Localize("en", "added", nil); ok || got != "" {
+		t.Errorf("Localize(late-added key) = (%q, %v), want (\"\", false)", got, ok)
+	}
+}

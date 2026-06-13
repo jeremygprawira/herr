@@ -23,10 +23,21 @@ type Localizer struct {
 
 // New builds a Localizer from a locale→(key→template) table.
 //
-// The constructor will defensively copy the input in a later cycle; for now it
-// stores the table directly so the first lookup test can pass.
+// The input is DEFENSIVELY COPIED — both the outer locale map and every inner
+// key→template map — so a caller that keeps and later mutates the table they
+// passed in cannot alter (or race with) this Localizer's lookups. This mirrors
+// how the herr core copies maps it stores. A nil or empty input yields a valid,
+// empty Localizer that simply returns ok=false for every lookup.
 func New(tables map[string]map[string]string) *Localizer {
-	return &Localizer{tables: tables}
+	cp := make(map[string]map[string]string, len(tables))
+	for locale, inner := range tables {
+		table := make(map[string]string, len(inner))
+		for k, v := range inner {
+			table[k] = v
+		}
+		cp[locale] = table
+	}
+	return &Localizer{tables: cp}
 }
 
 // Localize implements herr.Localizer. It looks up the template stored for
