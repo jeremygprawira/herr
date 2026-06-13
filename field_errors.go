@@ -1,5 +1,7 @@
 package herr
 
+import "errors"
+
 // Field errors describe WHICH inputs failed validation and why, in a shape a front end can
 // render next to each offending field. They are a PUBLIC, front-end-facing channel — not a
 // developer/log channel — so each entry carries only the safe triple {field, code,
@@ -59,20 +61,52 @@ type wireFieldError struct {
 	Message string `json:"message,omitempty"`
 }
 
-// fieldErrors renders this error's children into the wire `errors[]`, localizing each
-// child's message through the same resolution chain the top-level message uses. Returns nil
-// when there are no children, so the field is omitted from the body entirely.
+// fieldEntry renders one error's PUBLIC parts into a wire `errors[]` entry, localizing its
+// message through the same chain the top-level message uses. Reading only {field, code,
+// message} is what keeps an entry safe: a promoted child's internal fields/cause/stack have
+// no path into the array.
+func (e *Error) fieldEntry(locale string) wireFieldError {
+	return wireFieldError{
+		Field:   e.field,
+		Code:    e.code,
+		Message: e.resolveMessage(locale),
+	}
+}
+
+// fieldErrors renders the wire `errors[]` from two sources:
+//
+//  1. children appended explicitly via .FieldError, and
+//  2. *herr.Error children PROMOTED from a wrapped multi-error aggregate (errors.Join /
+//     go-multierror) — so a handler can validate with any aggregator and still return a
+//     clean per-field response.
+//
+// A NON-herr child in the aggregate is deliberately NOT promoted: arbitrary error strings
+// must never reach the client (C2). Such children remain visible to logs through the
+// wrapped cause. The combined list is H5-bounded. Returns nil when empty so the field is
+// omitted entirely.
 func (e *Error) fieldErrors(locale string) []wireFieldError {
-	if len(e.children) == 0 {
+	var out []wireFieldError
+
+	// 1. explicit children
+	for _, c := range e.children {
+		out = append(out, c.fieldEntry(locale))
+	}
+
+	// 2. promoted *herr.Error children from a wrapped aggregate (one level)
+	for _, child := range aggregateChildren(e.cause) {
+		var he *Error
+		if errors.As(child, &he) {
+			out = append(out, he.fieldEntry(locale))
+		}
+	}
+
+	if out == nil {
 		return nil
 	}
-	out := make([]wireFieldError, 0, len(e.children))
-	for _, c := range e.children {
-		out = append(out, wireFieldError{
-			Field:   c.field,
-			Code:    c.code,
-			Message: c.resolveMessage(locale),
-		})
+	// H5: bound the rendered array regardless of how children arrived.
+	if len(out) > maxFieldErrors {
+		out = out[:maxFieldErrors]
+		out = append(out, wireFieldError{Code: "_errors_truncated"})
 	}
 	return out
 }
