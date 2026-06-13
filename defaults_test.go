@@ -35,3 +35,31 @@ func TestDefaultMessage_ExplicitWins(t *testing.T) {
 		t.Errorf("message = %q, want the explicit one", got)
 	}
 }
+
+// TestSetDefaults_OverridesFloor proves the floor itself is overridable: SetDefaults
+// installs a process-wide map that replaces the built-in floor message for the Kinds it
+// names. Kinds it does NOT name keep their built-in floor, and SetDefaults(nil) restores
+// the built-in set entirely. The override is the FLOOR only — an explicit message still wins.
+func TestSetDefaults_OverridesFloor(t *testing.T) {
+	herr.SetDefaults(map[herr.Kind]string{
+		herr.KindNotFound: "Nothing here. (custom)",
+	})
+	t.Cleanup(func() { herr.SetDefaults(nil) })
+
+	// The named Kind uses the override.
+	if got := decodeWire(t, herr.New("X").Kind(herr.KindNotFound))["message"]; got != "Nothing here. (custom)" {
+		t.Errorf("NotFound floor = %q, want the custom override", got)
+	}
+
+	// An unnamed Kind keeps its built-in floor.
+	internal, _ := decodeWire(t, herr.New("BOOM"))["message"].(string)
+	if !strings.Contains(strings.ToLower(internal), "went wrong") {
+		t.Errorf("Internal floor = %q, want the built-in (unoverridden) message", internal)
+	}
+
+	// An explicit message still beats the override — the override is only the floor.
+	e := herr.New("X").Kind(herr.KindNotFound).Public(herr.Msg("Explicit."))
+	if got := decodeWire(t, e)["message"]; got != "Explicit." {
+		t.Errorf("message = %q, want the explicit one to win over the override", got)
+	}
+}
