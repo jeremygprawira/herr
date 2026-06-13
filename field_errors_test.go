@@ -2,6 +2,7 @@ package herr_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/jeremygeraldprawira/herr"
@@ -82,5 +83,51 @@ func TestFieldError_MessageLocalizes(t *testing.T) {
 	}
 	if got := fieldErrorEntries(t, e, "en")[0]["message"]; got != "Enter a valid email address." {
 		t.Errorf("en field message = %q, want the literal fallback", got)
+	}
+}
+
+// TestFieldError_InternalDetailNeverLeaks is the C2 guard for the errors[] channel:
+// per-field internal detail (a rejected value, a validator reason) added via .With must
+// stay in the logs and NEVER surface in the public errors[] — even though the field error
+// and the internal detail describe the same field.
+func TestFieldError_InternalDetailNeverLeaks(t *testing.T) {
+	const secret = "SECRET_rejected_value_user@example.com"
+
+	e := herr.New("VALIDATION_FAILED").Kind(herr.KindUnprocessable).
+		With("email_rejected_value", secret). // internal, logs-only
+		FieldError("email", "INVALID_EMAIL", "Enter a valid email address.")
+
+	body := decodeWire(t, e)
+	raw, _ := json.Marshal(body)
+	if strings.Contains(string(raw), secret) {
+		t.Errorf("LEAK: internal rejected value surfaced in wire body: %s", string(raw))
+	}
+
+	// ...but it IS available to logs.
+	if herr.LogFields(e)["email_rejected_value"] != secret {
+		t.Error("internal rejected value should be present in the log fields")
+	}
+}
+
+// TestFieldError_CappedAtLimit proves the H5 bound: no matter how many field errors are
+// appended, the rendered errors[] stays bounded and records a visible truncation marker.
+func TestFieldError_CappedAtLimit(t *testing.T) {
+	e := herr.New("VALIDATION_FAILED").Kind(herr.KindUnprocessable)
+	for i := 0; i < 250; i++ {
+		e.FieldError("f", "BAD", "nope")
+	}
+
+	entries := fieldErrorEntries(t, e, "en")
+	if len(entries) > 105 { // cap is 100 + at most one marker
+		t.Errorf("errors[] not capped: got %d entries", len(entries))
+	}
+	var marker bool
+	for _, en := range entries {
+		if en["code"] == "_errors_truncated" {
+			marker = true
+		}
+	}
+	if !marker {
+		t.Error("expected an _errors_truncated marker once the cap is hit")
 	}
 }
