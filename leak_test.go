@@ -27,7 +27,8 @@ func TestSafeSplit_InternalNeverLeaks(t *testing.T) {
 		Public(herr.Msg("We couldn't connect your account.")).
 		Internal(secretMsg).               // developer-only message
 		With("db_dsn", secretField).       // internal structured field
-		Wrap(errors.New(secretCause))      // underlying cause
+		Wrap(errors.New(secretCause)).     // underlying cause
+		WithStack()                        // captured stack (server-fault kind)
 
 	raw, err := json.Marshal(e)
 	if err != nil {
@@ -39,6 +40,12 @@ func TestSafeSplit_InternalNeverLeaks(t *testing.T) {
 		if strings.Contains(body, secret) {
 			t.Errorf("LEAK: internal secret %q appeared in wire body: %s", secret, body)
 		}
+	}
+
+	// The captured stack is INTERNAL too: no frame (file:line, package path) may surface.
+	// `.go:` is a reliable, content-independent marker of a leaked stack frame.
+	if strings.Contains(body, ".go:") {
+		t.Errorf("LEAK: a captured stack frame appeared in wire body: %s", body)
 	}
 
 	// The public message, by contrast, MUST be present.

@@ -18,6 +18,9 @@ type Record struct {
 	Fields     []Field
 	Cause      error
 	TraceID    string
+	// Stack is the optional captured call stack (server-fault kinds only, via WithStack).
+	// INTERNAL — present in logs, never on the wire. Empty when not captured.
+	Stack string
 }
 
 // Logger is the one-method sink herr's transport adapters use for OPT-IN auto-logging.
@@ -44,6 +47,7 @@ func LogRecord(err error) Record {
 			Fields:     he.fields,
 			Cause:      he.cause,
 			TraceID:    he.traceID,
+			Stack:      he.stack,
 		}
 	}
 	// Non-herr error: minimal, safe-to-log fallback.

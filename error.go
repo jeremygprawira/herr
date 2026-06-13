@@ -98,6 +98,11 @@ type Error struct {
 	// of the few values that intentionally appears on BOTH surfaces. Set via Trace;
 	// transports inject one when unset.
 	traceID string
+
+	// stack is an optional captured call stack, recorded by WithStack ONLY for
+	// server-fault kinds (H5). It is INTERNAL — surfaced on the log Record, never on the
+	// wire. Empty when not captured.
+	stack string
 }
 
 // Trace sets the correlation id and returns the receiver for chaining.
