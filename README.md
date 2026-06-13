@@ -1,4 +1,4 @@
-# herr
+# herr - humanized error
 
 A framework-, logger-, and i18n-agnostic Go error library. One error value carries **two
 surfaces at once**:
