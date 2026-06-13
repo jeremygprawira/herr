@@ -91,30 +91,22 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
 - [x] `localizer/mapl` (map-based) — built via TDD by subagent; defensive deep-copy + injection-safe substitute
 - [ ] embedded `en` + `id` floor-message bundles
 
-### Phase 3 — transports
-- [x] `httperr`: Middleware + Write + Retry-After + Accept-Language (stdlib-only root sub-package, 6 TDD cycles)
-- [ ] `grpcerr`: interceptors + status + RetryInfo  (submodule — BLOCKED: agent hit session limit before any commit; rerun after reset)
-- [x] `wserr`: close-code mapping + reason + ControlPayload (stdlib-only root sub-package, 2 TDD cycles + guards)
+### Phase 3 — transports ✅ DONE
+- [x] `httperr`: Middleware + Write + Retry-After + Accept-Language (stdlib-only root sub-package, 6 cycles)
+- [x] `grpcerr`: UnaryServerInterceptor + Status mapping + RetryInfo (submodule: grpc/genproto/protobuf, 4 cycles)
+- [x] `wserr`: close-code mapping + reason + ControlPayload (stdlib-only root sub-package, 2 cycles + guards)
 
-### Phase 4 — logger adapters
-- [x] `adapter/slog` (stdlib `log/slog`, root sub-package, 6 TDD cycles by subagent)
-- [ ] `adapter/zap`, `adapter/logrus`, `adapter/zerolog`  (each a submodule — BLOCKED: agents hit session limit before any commit; rerun after reset)
+### Phase 4 — logger adapters ✅ DONE
+- [x] `adapter/slog` (stdlib `log/slog`, root sub-package, by subagent)
+- [x] `adapter/zap`, `adapter/logrus`, `adapter/zerolog`  (each a submodule with replace; structural twins of slog)
 
-#### Third-party submodule recipe (for the BLOCKED leaves above)
-Each third-party adapter/transport is its OWN Go module so the root stays dep-free. Pattern
-(e.g. `adapter/zap/go.mod`):
-```
-module github.com/jeremygeraldprawira/herr/adapter/zap
-go 1.26
-require ( github.com/jeremygeraldprawira/herr v0.0.0; go.uber.org/zap v1.27.0 )
-replace github.com/jeremygeraldprawira/herr => ../../
-```
-Then `go mod tidy`. Logger adapters are STRUCTURAL TWINS of `adapter/slog/slog.go` (same
-snake_case keys `code/internal/trace_id/status/cause/stack` + fields; level policy: HTTP
-status ≥500 → Error else Warn; `New(nil)`-safe). `grpcerr` maps `GRPCCode()`→`codes.Code`,
-uses the safe public message (from `Body(locale)`), attaches `errdetails.RetryInfo` when
-`Retryable()==RetryYes && RetryAfterSeconds()>0`; never let internal detail reach the status.
-A `go.work` at repo root tying the submodules together is the natural way to test them all.
+#### Module layout (multi-module repo, root stays dep-free)
+- ROOT module `herr` contains: core + `httperr/` + `wserr/` + `adapter/slog/` + `localizer/mapl/`
+  (all stdlib-only, no separate go.mod).
+- SUBMODULES (own go.mod + `replace github.com/jeremygeraldprawira/herr => ../..` or `../`):
+  `adapter/zap`, `adapter/logrus`, `adapter/zerolog` (two levels → `../../`), `grpcerr` (one level → `../`).
+- `go.work` at the root ties them together for local testing. Sweep:
+  `for m in . adapter/zap adapter/logrus adapter/zerolog grpcerr; do (cd $m && go test ./...); done`
 
 ### Phase 5 — quality layer
 - [ ] `StrictMode()` validations
@@ -144,12 +136,12 @@ A `go.work` at repo root tying the submodules together is the natural way to tes
   (map localizer). slog + mapl were built by parallel subagents in isolated worktrees under
   strict TDD, then reviewed + merged. Transport accessors added to core:
   `RetryAfterSeconds()`, `Retryable()`.
-- **5 packages, all green:** `herr`, `herr/httperr`, `herr/wserr`, `herr/adapter/slog`,
-  `herr/localizer/mapl`.
-- **Blocked (session limit, resets 10:10pm Asia/Jakarta 2026-06-13):** parallel agents for
-  `adapter/{zap,logrus,zerolog}` + `grpcerr` were launched but hit the limit before
-  committing anything; their worktrees/branches were cleaned. Rerun after reset using the
-  submodule recipe below. **Resume next session at:** those four leaves, then Phase 5/6.
+- **103 tests across 5 modules, all green + vet-clean:** root `herr` (85: core + httperr +
+  wserr + adapter/slog + localizer/mapl), `adapter/zap` (5), `adapter/logrus` (5),
+  `adapter/zerolog` (4), `grpcerr` (4).
+- **Phases 1, 1b, 2 (mapl), 3, 4 DONE.** Remaining: Phase 2 leftovers (`en`/`id` floor
+  bundles; `SetSupportedLocales`/x/text H4 — deferred), Phase 5 (StrictMode, cookbook,
+  herrlint), Phase 6 (README, package GoDoc, `ExampleXxx`). **Resume next at Phase 5/6.**
 - **Both security gates proven & continuously re-verified:** C1 (`TestCatalog_*`, race-clean)
   and C2 (`TestSafeSplit_InternalNeverLeaks` + `FuzzWire_NeverLeaksInternal`, ~8M execs/run).
 - Source files (all commented): `error.go` `kind.go` `public.go` `wire.go` `fields.go`
