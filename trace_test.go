@@ -1,6 +1,7 @@
 package herr_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jeremygeraldprawira/herr"
@@ -21,5 +22,32 @@ func TestTrace(t *testing.T) {
 func TestTrace_OmittedWhenUnset(t *testing.T) {
 	if _, present := decodeWire(t, herr.New("BOOM"))["traceId"]; present {
 		t.Error("traceId should be omitted when unset")
+	}
+}
+
+// TestNewTraceID proves the helper transports use to mint a correlation id when the caller
+// supplied none: it returns a non-empty, fixed-length hex id, and successive calls are
+// unique (so two concurrent requests never collide).
+func TestNewTraceID(t *testing.T) {
+	const hexChars = "0123456789abcdef"
+
+	id := herr.NewTraceID()
+	if len(id) != 32 { // 16 random bytes, hex-encoded
+		t.Errorf("len(NewTraceID()) = %d, want 32", len(id))
+	}
+	for _, r := range id {
+		if !strings.ContainsRune(hexChars, r) {
+			t.Fatalf("NewTraceID() = %q contains non-hex char %q", id, r)
+		}
+	}
+
+	// Uniqueness across a batch — randomness, not a constant.
+	seen := make(map[string]bool, 1000)
+	for i := 0; i < 1000; i++ {
+		id := herr.NewTraceID()
+		if seen[id] {
+			t.Fatalf("NewTraceID() produced a duplicate: %q", id)
+		}
+		seen[id] = true
 	}
 }
