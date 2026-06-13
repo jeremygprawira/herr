@@ -109,14 +109,14 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
   `for m in . adapter/zap adapter/logrus adapter/zerolog grpcerr; do (cd $m && go test ./...); done`
 
 ### Phase 5 — quality layer
-- [ ] `StrictMode()` validations
-- [ ] cookbook docs
-- [ ] (fast-follow) `cmd/herrlint`
+- [x] `StrictMode(on bool)` — unfilled `{param}` placeholders rendered visible in strict mode (H3); atomic, never panics
+- [ ] cookbook docs (README covers the common flows; a dedicated cookbook is a nice-to-have)
+- [ ] (fast-follow) `cmd/herrlint` — separate tool, deferred
 
 ### Phase 6 — docs
-- [ ] package-level GoDoc on every package
-- [ ] `README.md` with quickstart + examples
-- [ ] `doc.go` examples (`ExampleXxx`)
+- [x] package-level GoDoc on every package (core + httperr + wserr + 4 adapters + mapl + grpcerr all have package doc comments)
+- [x] `README.md` with quickstart + examples
+- [x] `doc.go` examples — `ExampleError` + `ExampleError_fieldErrors` in `example_test.go`, verified by `go test` against their `// Output`
 
 ## Decisions log (so we don't re-litigate)
 - Public surface = `{Title, Message, Metadata}`. Reassurance removed. Metadata stays
