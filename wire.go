@@ -31,6 +31,12 @@ type wireError struct {
 
 	// TraceID correlates this response with server logs. Omitted when unset.
 	TraceID string `json:"traceId,omitempty"`
+
+	// Errors is the typed, front-end-facing list of per-field validation errors. It is a
+	// TOP-LEVEL field (not metadata) so clients have one well-known place to render
+	// per-input messages. Each entry is the safe {field, code, message} triple; omitted
+	// when there are no field errors.
+	Errors []wireFieldError `json:"errors,omitempty"`
 }
 
 // wire builds the safe DTO for a given locale.
@@ -55,6 +61,7 @@ func (e *Error) wire(locale string) wireError {
 		Retryable:  retryablePtr(e.resolveRetry()),
 		RetryAfter: retryAfterSeconds(e.retryAfter),
 		TraceID:    e.traceID,
+		Errors:     e.fieldErrors(locale),
 	}
 }
 

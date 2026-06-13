@@ -103,6 +103,16 @@ type Error struct {
 	// server-fault kinds (H5). It is INTERNAL — surfaced on the log Record, never on the
 	// wire. Empty when not captured.
 	stack string
+
+	// field is the input path this error is ABOUT, set on field errors (see FieldError).
+	// It is PUBLIC — it tells a front end which input to flag — and surfaces only inside
+	// an `errors[]` entry, never as internal data. Empty on ordinary (non-field) errors.
+	field string
+
+	// children are per-field sub-errors appended via FieldError. The parent renders them
+	// as the typed, top-level wire `errors[]`, using ONLY each child's public parts. They
+	// are stored on the parent instance (per-request), never on a shared Class.
+	children []*Error
 }
 
 // Trace sets the correlation id and returns the receiver for chaining.
