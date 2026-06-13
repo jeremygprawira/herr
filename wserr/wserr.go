@@ -33,6 +33,18 @@ func Close(err error, locale string) (code int, reason string) {
 	return he.WSClose(), capReason(publicMessage(he, locale))
 }
 
+// ControlPayload returns the ready-to-send CLOSE control-frame payload for err: the 2-byte
+// big-endian close code followed by the UTF-8 reason (RFC 6455 §5.5.1). A caller hands this
+// straight to their WebSocket library's close/control-write call. The total is always <= 125
+// bytes (2 code bytes + a reason capped at 123), so it is a valid control-frame payload.
+func ControlPayload(err error, locale string) []byte {
+	code, reason := Close(err, locale)
+	payload := make([]byte, 2, 2+len(reason))
+	payload[0] = byte(code >> 8)
+	payload[1] = byte(code)
+	return append(payload, reason...)
+}
+
 // coerce returns err as a *herr.Error, wrapping a non-herr error as a server fault so its
 // detail stays server-side (available to logs) and never reaches the close reason.
 func coerce(err error) *herr.Error {
