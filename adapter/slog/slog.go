@@ -53,6 +53,9 @@ func (a *logger) Log(ctx context.Context, rec herr.Record) {
 	if rec.Cause != nil {
 		attrs = append(attrs, slog.String("cause", rec.Cause.Error()))
 	}
+	if rec.Stack != "" {
+		attrs = append(attrs, slog.String("stack", rec.Stack))
+	}
 
 	// Each internal structured field becomes its own top-level attribute, keyed by the
 	// field's own key, so debugging context (user ids, regions, ...) is queryable in logs.

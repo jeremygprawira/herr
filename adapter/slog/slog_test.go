@@ -169,3 +169,20 @@ func TestLog_FieldsBecomeAttrs(t *testing.T) {
 		t.Errorf("want region=us-east-1, got %v", a["region"])
 	}
 }
+
+// TestLog_StackPresentWhenSet verifies a captured call stack is emitted under "stack"
+// when the Record carries one, and omitted otherwise.
+func TestLog_StackPresentWhenSet(t *testing.T) {
+	h, l := newCapture()
+	log := slogadapter.New(l)
+
+	log.Log(context.Background(), herr.Record{Code: "BOOM", Stack: "goroutine 1 ..."})
+	if got := h.records[0].attrs["stack"]; got != "goroutine 1 ..." {
+		t.Errorf("want stack set, got %v", got)
+	}
+
+	log.Log(context.Background(), herr.Record{Code: "BARE"})
+	if _, ok := h.records[1].attrs["stack"]; ok {
+		t.Errorf("want stack omitted when empty")
+	}
+}
