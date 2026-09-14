@@ -85,7 +85,7 @@ type Error struct {
 	internal string
 
 	// fields are internal structured context (key/value) for logs. INTERNAL — never
-	// serialized. Lazily grown via With.
+	// serialized. Lazily grown via WithInternal.
 	fields []Field
 
 	// cause is the underlying error this one wraps, if any. It powers errors.Unwrap

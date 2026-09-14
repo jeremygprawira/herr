@@ -15,7 +15,7 @@ import (
 // a server needs to close a connection meaningfully.
 func TestClose_CodeAndReason(t *testing.T) {
 	e := herr.New("SLOW_DOWN").Kind(herr.KindRateLimited).
-		Public(herr.Msg("You're going too fast. Try again shortly."))
+		Public(herr.Message("You're going too fast. Try again shortly."))
 
 	code, reason := wserr.Close(e, "")
 
@@ -35,7 +35,7 @@ func TestClose_CodeAndReason(t *testing.T) {
 // 2-byte big-endian close code followed by the UTF-8 reason (RFC 6455 §5.5.1), so a caller
 // can hand it straight to their WebSocket library's close/control-write method.
 func TestControlPayload_Encoding(t *testing.T) {
-	e := herr.New("DOWN").Kind(herr.KindUnavailable).Public(herr.Msg("Down for maintenance."))
+	e := herr.New("DOWN").Kind(herr.KindUnavailable).Public(herr.Message("Down for maintenance."))
 
 	payload := wserr.ControlPayload(e, "")
 
@@ -58,7 +58,7 @@ func TestControlPayload_Encoding(t *testing.T) {
 // invalid (oversized) close frame: the reason is bounded to 123 bytes on a UTF-8 boundary.
 func TestClose_ReasonTruncatedToFrameLimit(t *testing.T) {
 	long := strings.Repeat("é", 200) // 400 bytes of valid UTF-8
-	e := herr.New("X").Kind(herr.KindInvalid).Public(herr.Msg(long))
+	e := herr.New("X").Kind(herr.KindInvalid).Public(herr.Message(long))
 
 	_, reason := wserr.Close(e, "")
 	if len(reason) > 123 {

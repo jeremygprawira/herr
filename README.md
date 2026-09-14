@@ -14,9 +14,9 @@ behind a tiny interface.
 ```go
 err := herr.New("ORDER_NOT_FOUND").
     Kind(herr.KindNotFound).
-    Public(herr.Msg("We couldn't find that order.")).
+    Public(herr.Message("We couldn't find that order.")).
     Internal("order 4821 missing from shard eu-3").  // logs only
-    With("shard", "eu-3").                            // logs only
+    WithInternal("shard", "eu-3").                    // logs only
     Wrap(cause)                                       // logs only
 
 httperr.Write(w, r, err) // → 404 + {"code":"ORDER_NOT_FOUND","message":"We couldn't find that order."}
@@ -89,7 +89,7 @@ var ErrNotFound = herr.Define(herr.Class{
 })
 
 func get(id string) error {
-    return ErrNotFound.New().With("id", id) // fresh instance, own per-request state
+    return ErrNotFound.New().WithInternal("id", id) // fresh instance, own per-request state
 }
 
 if ErrNotFound.Is(err) { /* ... */ }        // matches through wrapping
@@ -99,10 +99,10 @@ if ErrNotFound.Is(err) { /* ... */ }        // matches through wrapping
 
 ```go
 e := herr.New("PAYMENT_FAILED").Kind(herr.KindUnavailable).
-    Public(herr.Msg("We couldn't process your payment. Please try again.")).
+    Public(herr.Message("We couldn't process your payment. Please try again.")).
     WithPublic("support_url", "https://help.example.com/payments"). // public metadata
     Internal("stripe: card_declined insufficient_funds").           // logs only
-    With("stripe_request_id", "req_123").                           // logs only
+    WithInternal("stripe_request_id", "req_123").                   // logs only
     Wrap(stripeErr)                                                 // logs only
 ```
 

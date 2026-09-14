@@ -87,14 +87,14 @@ func TestFieldError_MessageLocalizes(t *testing.T) {
 }
 
 // TestFieldError_InternalDetailNeverLeaks is the C2 guard for the errors[] channel:
-// per-field internal detail (a rejected value, a validator reason) added via .With must
-// stay in the logs and NEVER surface in the public errors[] — even though the field error
-// and the internal detail describe the same field.
+// per-field internal detail (a rejected value, a validator reason) added via .WithInternal
+// must stay in the logs and NEVER surface in the public errors[] — even though the field
+// error and the internal detail describe the same field.
 func TestFieldError_InternalDetailNeverLeaks(t *testing.T) {
 	const secret = "SECRET_rejected_value_user@example.com"
 
 	e := herr.New("VALIDATION_FAILED").Kind(herr.KindUnprocessable).
-		With("email_rejected_value", secret). // internal, logs-only
+		WithInternal("email_rejected_value", secret). // internal, logs-only
 		FieldError("email", "INVALID_EMAIL", "Enter a valid email address.")
 
 	body := decodeWire(t, e)

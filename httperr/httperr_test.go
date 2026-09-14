@@ -32,7 +32,7 @@ func decodeBody(t *testing.T, err error, req *http.Request) (*httptest.ResponseR
 func TestWrite_StatusAndBody(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/orders/42", nil)
 	e := herr.New("ORDER_NOT_FOUND").Kind(herr.KindNotFound).
-		Public(herr.Msg("We couldn't find that order."))
+		Public(herr.Message("We couldn't find that order."))
 
 	rec, body := decodeBody(t, e, req)
 

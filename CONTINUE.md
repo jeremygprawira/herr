@@ -39,8 +39,8 @@ Then open this file and start at the first unchecked `[ ]`.
 DONE (7 TDD cycles, 25 tests + 1 fuzz, all green, `-race` clean, `go vet` clean):
 - [x] `Kind` enum + default **HTTP** mapping + Kind→retryability (`kind.go`, `retry.go`)
 - [x] `Error` type: `New(code)`, `Error()`, `Code()`, `Unwrap()` (`error.go`)
-- [x] `Public` struct {Title, Message, Metadata} + `Msg()` shorthand (`public.go`)
-- [x] builder so far: `.Kind/.Status/.Title/.Message/.Public/.Meta/.WithPublic/.With/.Internal/.Internalf/.Wrap/.Retry`
+- [x] `Public` struct {Title, Message, Metadata} + `Message()` shorthand (`public.go`)
+- [x] builder so far: `.Kind/.Status/.Title/.Message/.Public/.WithPublic/.WithInternal/.Internal/.Internalf/.Wrap/.Retry`
 - [x] **C2 leak gate:** `wire()` DTO + `MarshalJSON` allowlist + leak fuzz (`wire.go`, `leak_test.go`) — ~490k execs, 0 leaks
 - [x] wrapping + `errors.Is`/`As` by code + catalog `Class.Is` (`match.go`)
 - [x] catalog: `Define(Class)` + `.New()` (`catalog.go`)
@@ -71,7 +71,7 @@ Build in TWO TDD steps, in this order:
    - [x] `KindUnprocessable` → HTTP 422 (gRPC InvalidArgument, WS 1008, retry No, floor msg)
    - [x] `herr.FieldError(field, code, message) *Error` — carries a `field` path; PUBLIC parts `{field, code, message}` only
    - [x] `.FieldError(field, code, msg)` builder appends children; parent renders typed top-level **`errors[]`** (NOT metadata); each message localizes via the same chain; H5 cap 100 + `_errors_truncated` marker
-   - [x] Per-field internal `.With(...)` detail stays in logs, NEVER in public `errors[]` (C2 guard test)
+   - [x] Per-field internal `.WithInternal(...)` detail stays in logs, NEVER in public `errors[]` (C2 guard test)
 
 2. **Multi-error interop (zero new deps — structural interface checks)** ✅ DONE
    - [x] `aggregateChildren` detects aggregates structurally: `interface{ Unwrap() []error }`
@@ -147,8 +147,8 @@ interface structurally instead. herr is "multi-error-agnostic" like it is logger
 - Source files (all commented): `error.go` `kind.go` `public.go` `wire.go` `fields.go`
   `catalog.go` `retry.go` `match.go` `transport_codes.go` `template.go` `log.go`
   `defaults.go` `localize.go`.
-- Public API so far: `New/Define/Class/Public/Msg`, builders `Kind/Status/GRPC/WS/Title/
-  Message/Public/Meta/WithPublic/With/Internal/Internalf/Param/Params/Retry/RetryAfter/
+- Public API so far: `New/Define/Class/Public/Message`, builders `Kind/Status/GRPC/WS/Title/
+  Message/Public/WithPublic/WithInternal/Internal/Internalf/Param/Params/Retry/RetryAfter/
   Trace/Wrap`, accessors `Code/HTTPStatus/GRPCCode/WSClose/TraceID/Error/Unwrap/Is/Body`,
   builder `MessageKey`, funcs `LogRecord/LogFields/Attrs/SetLocalizer/SetDefaults`,
   ifaces `Localizer/Logger`. `Class` now has a `MessageKey` field too.

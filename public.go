@@ -9,7 +9,7 @@ package herr
 // All fields are optional. Title/Message are human-readable display text; Metadata is a
 // free-form bag for anything else the team wants the client to have (a support URL, an
 // incident id, a doc link, ...). Because Metadata is public, only safe values belong in
-// it — internal context goes through Error.With instead.
+// it — internal context goes through Error.WithInternal instead.
 type Public struct {
 	// Title is an optional heading (e.g. "Unable to connect your account").
 	Title string
@@ -19,15 +19,15 @@ type Public struct {
 	Metadata map[string]any
 }
 
-// Msg is shorthand for a Public carrying only a Message, so the common single-sentence
-// case stays a one-liner: herr.New("X").Public(herr.Msg("...")).
-func Msg(s string) Public {
+// Message is shorthand for a Public carrying only a Message, so the common
+// single-sentence case stays a one-liner: herr.New("X").Public(herr.Message("...")).
+func Message(s string) Public {
 	return Public{Message: s}
 }
 
 // Public sets the entire public surface at once and returns the receiver for chaining.
 // Use it from a catalog definition or when you want to set several public fields
-// together; use Title/Message/Meta to set them individually.
+// together; use Title/Message/WithPublic to set them individually.
 func (e *Error) Public(p Public) *Error {
 	if e == nil {
 		return nil

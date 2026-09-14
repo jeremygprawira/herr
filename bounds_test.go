@@ -10,11 +10,12 @@ import (
 
 // TestBounds_FieldsCapped proves internal fields can't grow without limit: past the cap,
 // further additions are dropped and a single truncation marker is recorded. This bounds
-// memory and log-line size even if a buggy loop or an attacker drives many .With calls.
+// memory and log-line size even if a buggy loop or an attacker drives many .WithInternal
+// calls.
 func TestBounds_FieldsCapped(t *testing.T) {
 	e := herr.New("X")
 	for i := 0; i < 500; i++ {
-		e.With(fmt.Sprintf("k%d", i), i)
+		e.WithInternal(fmt.Sprintf("k%d", i), i)
 	}
 
 	rec := herr.LogRecord(e)
@@ -62,11 +63,11 @@ func TestBounds_InternalMessageTruncated(t *testing.T) {
 }
 
 // TestBounds_FieldStringTruncated proves a huge string VALUE in an internal field is
-// truncated the same way the internal message is — so one .With call with a giant blob
-// can't blow up a log line. Non-string values are left untouched.
+// truncated the same way the internal message is — so one .WithInternal call with a giant
+// blob can't blow up a log line. Non-string values are left untouched.
 func TestBounds_FieldStringTruncated(t *testing.T) {
 	long := strings.Repeat("y", 100_000)
-	e := herr.New("X").With("blob", long)
+	e := herr.New("X").WithInternal("blob", long)
 
 	var got string
 	for _, f := range herr.LogRecord(e).Fields {

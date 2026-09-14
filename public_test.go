@@ -55,10 +55,10 @@ func TestPublic_RendersToWireBody(t *testing.T) {
 	}
 }
 
-// TestMsg_Shorthand proves herr.Msg(s) is sugar for a Public carrying just a Message, so
-// the common "I only have one sentence" case stays a one-liner.
-func TestMsg_Shorthand(t *testing.T) {
-	e := herr.New("NOT_FOUND").Public(herr.Msg("Resource not found."))
+// TestMessage_Shorthand proves herr.Message(s) is sugar for a Public carrying just a
+// Message, so the common "I only have one sentence" case stays a one-liner.
+func TestMessage_Shorthand(t *testing.T) {
+	e := herr.New("NOT_FOUND").Public(herr.Message("Resource not found."))
 
 	body := decodeWire(t, e)
 	if body["message"] != "Resource not found." {

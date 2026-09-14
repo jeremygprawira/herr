@@ -21,7 +21,7 @@ import (
 // the shape a gRPC client receives.
 func TestStatus_CodeAndMessage(t *testing.T) {
 	e := herr.New("ORDER_NOT_FOUND").Kind(herr.KindNotFound).
-		Public(herr.Msg("We couldn't find that order."))
+		Public(herr.Message("We couldn't find that order."))
 
 	st := grpcerr.Status(e, "")
 
@@ -90,7 +90,7 @@ func TestUnaryServerInterceptor_ConvertsError(t *testing.T) {
 
 	// Error path: herr error → mapped status.
 	failing := func(context.Context, any) (any, error) {
-		return nil, herr.New("NOPE").Kind(herr.KindNotFound).Public(herr.Msg("Missing."))
+		return nil, herr.New("NOPE").Kind(herr.KindNotFound).Public(herr.Message("Missing."))
 	}
 	_, err := interceptor(context.Background(), nil, &grpc.UnaryServerInfo{}, failing)
 	st, ok := status.FromError(err)

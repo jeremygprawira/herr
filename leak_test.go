@@ -24,11 +24,11 @@ func TestSafeSplit_InternalNeverLeaks(t *testing.T) {
 
 	e := herr.New("ACCOUNT_CONNECT_FAILED").
 		Kind(herr.KindUnavailable).
-		Public(herr.Msg("We couldn't connect your account.")).
-		Internal(secretMsg).               // developer-only message
-		With("db_dsn", secretField).       // internal structured field
-		Wrap(errors.New(secretCause)).     // underlying cause
-		WithStack()                        // captured stack (server-fault kind)
+		Public(herr.Message("We couldn't connect your account.")).
+		Internal(secretMsg).                 // developer-only message
+		WithInternal("db_dsn", secretField). // internal structured field
+		Wrap(errors.New(secretCause)).       // underlying cause
+		WithStack()                          // captured stack (server-fault kind)
 
 	raw, err := json.Marshal(e)
 	if err != nil {
@@ -92,9 +92,9 @@ func FuzzWire_NeverLeaksInternal(f *testing.F) {
 			return // nothing secret to leak
 		}
 		e := herr.New(code).
-			Public(herr.Msg("safe public message")).
+			Public(herr.Message("safe public message")).
 			Internal(internal).
-			With("k", field).
+			WithInternal("k", field).
 			Wrap(errors.New(cause))
 
 		raw, err := json.Marshal(e)
