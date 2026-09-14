@@ -12,7 +12,7 @@ import (
 // forgot to supply a Param — never a panic, just a loud, obvious gap.
 func TestStrictMode_MissingParamVisible(t *testing.T) {
 	e := func() *herr.Error {
-		return herr.New("GREETING").Public(herr.Msg("Hello {name}, welcome back!"))
+		return herr.New("GREETING").Public(herr.Message("Hello {name}, welcome back!"))
 	}
 
 	// Default (production): the missing param disappears.

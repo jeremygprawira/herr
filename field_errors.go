@@ -6,7 +6,7 @@ import "errors"
 // render next to each offending field. They are a PUBLIC, front-end-facing channel — not a
 // developer/log channel — so each entry carries only the safe triple {field, code,
 // message}. Any rejected value or validator reason a developer wants to debug goes through
-// the normal internal .With(...) channel on the child and is NEVER auto-promoted here
+// the normal internal .WithInternal(...) channel on the child and is NEVER auto-promoted here
 // (that would risk leaking PII / internals, breaking C2).
 //
 // Two authoring styles:

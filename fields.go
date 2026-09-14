@@ -47,11 +47,12 @@ type Field struct {
 	Val any
 }
 
-// With attaches an INTERNAL structured field (logs only). It never crosses the wire.
+// WithInternal attaches an INTERNAL structured field (logs only). It never crosses the
+// wire.
 //
 // Use it freely for debugging context — query ids, upstream names, raw values — without
 // any risk of leaking, because the wire DTO has no access to these fields.
-func (e *Error) With(key string, val any) *Error {
+func (e *Error) WithInternal(key string, val any) *Error {
 	if e == nil {
 		return nil
 	}
@@ -78,7 +79,7 @@ func capValue(val any) any {
 
 // WithPublic attaches PUBLIC metadata that WILL cross the wire (merged into the response
 // `metadata` object). Only put safe, non-sensitive values here; for internal context use
-// With instead.
+// WithInternal instead.
 func (e *Error) WithPublic(key string, val any) *Error {
 	if e == nil {
 		return nil
@@ -94,10 +95,6 @@ func (e *Error) WithPublic(key string, val any) *Error {
 	e.pubMeta[key] = capValue(val)
 	return e
 }
-
-// Meta is an alias for WithPublic, provided because "metadata" reads naturally at call
-// sites that think of this as "attach public metadata".
-func (e *Error) Meta(key string, val any) *Error { return e.WithPublic(key, val) }
 
 // Internal sets the developer-only message (logs/debugging). INTERNAL — never sent to a
 // client. Overwrites any previous internal message.

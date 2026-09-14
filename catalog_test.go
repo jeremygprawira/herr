@@ -77,7 +77,7 @@ func TestCatalog_ConcurrentNewIsRaceFree(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			e := ErrX.New().WithPublic("i", i).With("secret", i)
+			e := ErrX.New().WithPublic("i", i).WithInternal("secret", i)
 			if _, err := json.Marshal(e); err != nil {
 				t.Errorf("marshal failed: %v", err)
 			}

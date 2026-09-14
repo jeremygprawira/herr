@@ -30,7 +30,7 @@ func TestDefaultMessage_FloorByKind(t *testing.T) {
 
 // TestDefaultMessage_ExplicitWins proves an explicit message always overrides the floor.
 func TestDefaultMessage_ExplicitWins(t *testing.T) {
-	e := herr.New("X").Kind(herr.KindNotFound).Public(herr.Msg("That order doesn't exist."))
+	e := herr.New("X").Kind(herr.KindNotFound).Public(herr.Message("That order doesn't exist."))
 	if got := decodeWire(t, e)["message"]; got != "That order doesn't exist." {
 		t.Errorf("message = %q, want the explicit one", got)
 	}
@@ -58,7 +58,7 @@ func TestSetDefaults_OverridesFloor(t *testing.T) {
 	}
 
 	// An explicit message still beats the override — the override is only the floor.
-	e := herr.New("X").Kind(herr.KindNotFound).Public(herr.Msg("Explicit."))
+	e := herr.New("X").Kind(herr.KindNotFound).Public(herr.Message("Explicit."))
 	if got := decodeWire(t, e)["message"]; got != "Explicit." {
 		t.Errorf("message = %q, want the explicit one to win over the override", got)
 	}

@@ -65,7 +65,7 @@ func TestLog_OptionalFields(t *testing.T) {
 	log, buf := newCaptured(t)
 	rich := herr.New("DB_DOWN").Kind(herr.KindUnavailable).
 		Internal("connection refused").
-		With("shard", "eu-3").
+		WithInternal("shard", "eu-3").
 		Trace("trace-xyz")
 	log.Log(context.Background(), herr.LogRecord(rich))
 

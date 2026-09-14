@@ -106,7 +106,7 @@ func TestLocalizer_InlineMessageWins(t *testing.T) {
 	herr.SetLocalizer(mapLocalizer{"id|errors.x.message": "translated"})
 	t.Cleanup(func() { herr.SetLocalizer(nil) })
 
-	e := herr.New("X").Public(herr.Msg("inline override"))
+	e := herr.New("X").Public(herr.Message("inline override"))
 	if got := bodyMessage(t, e, "id"); got != "inline override" {
 		t.Errorf("message = %q, want inline override to win", got)
 	}

@@ -13,9 +13,9 @@ import (
 func ExampleError() {
 	e := herr.New("ORDER_NOT_FOUND").
 		Kind(herr.KindNotFound).
-		Public(herr.Msg("We couldn't find that order.")).
+		Public(herr.Message("We couldn't find that order.")).
 		Internal("order 4821 missing from shard eu-3"). // logs only
-		With("shard", "eu-3")                           // logs only
+		WithInternal("shard", "eu-3")                   // logs only
 
 	body, _ := json.Marshal(e) // MarshalJSON delegates to the safe wire allow-list
 	fmt.Println(string(body))
@@ -27,7 +27,7 @@ func ExampleError() {
 func ExampleError_fieldErrors() {
 	e := herr.New("VALIDATION_FAILED").
 		Kind(herr.KindUnprocessable).
-		Public(herr.Msg("Please fix the highlighted fields.")).
+		Public(herr.Message("Please fix the highlighted fields.")).
 		FieldError("email", "INVALID_EMAIL", "Enter a valid email address.").
 		FieldError("age", "OUT_OF_RANGE", "You must be 18 or older.")
 

@@ -28,7 +28,7 @@ func TestParam_Substitution(t *testing.T) {
 // never interpreted — no Sprintf injection, no re-scanning of substituted text.
 func TestParam_NoFormatInjection(t *testing.T) {
 	e := herr.New("X").
-		Public(herr.Msg("Hello {name}!")).
+		Public(herr.Message("Hello {name}!")).
 		Param("name", "%s%d {evil} 100%").
 		Param("evil", "PWNED") // must NOT be used to fill the {evil} that came from a value
 
@@ -43,7 +43,7 @@ func TestParam_NoFormatInjection(t *testing.T) {
 // default (production) mode rather than showing raw `{name}` braces to a user. StrictMode
 // (added later) will turn this into a test-time failure so it never ships.
 func TestParam_MissingRendersEmpty(t *testing.T) {
-	e := herr.New("X").Public(herr.Msg("A{missing}B"))
+	e := herr.New("X").Public(herr.Message("A{missing}B"))
 
 	body := decodeWire(t, e)
 	if body["message"] != "AB" {

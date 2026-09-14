@@ -16,7 +16,7 @@ func TestLogRecord_CarriesInternalDetail(t *testing.T) {
 	e := herr.New("ACCOUNT_CONNECT_FAILED").
 		Kind(herr.KindUnavailable).
 		Internal("kyc upstream failed").
-		With("upstream", "kyc-svc").
+		WithInternal("upstream", "kyc-svc").
 		Trace("t-1").
 		Wrap(cause)
 
@@ -51,7 +51,7 @@ func TestLogRecord_CarriesInternalDetail(t *testing.T) {
 // TestLogFields_FlatMap proves the map shape (for logrus-style loggers) contains the
 // identifying keys plus the internal fields flattened in.
 func TestLogFields_FlatMap(t *testing.T) {
-	e := herr.New("X").Internal("boom").With("k", "v").Trace("t")
+	e := herr.New("X").Internal("boom").WithInternal("k", "v").Trace("t")
 	m := herr.LogFields(e)
 
 	if m["code"] != "X" {
